@@ -1,0 +1,8 @@
+
+Capital Gains Calculator
+
+Usage: calculate-capital-gains <csv-files...>
+
+Arguments:
+  -h, --help   Display this message and exit.
+

@@ -1,0 +1,56 @@
+{
+	"name": "capital-gains-calculator",
+	"version": "0.0.0",
+	"description": "Capital Gains Calculator",
+	"keywords": [
+		"capital gains",
+		"crypto",
+		"tax"
+	],
+	"homepage": "http://davidosborn.io/capital-gains-calculator/",
+	"bugs": {
+		"url": "http://davidosborn.io/capital-gains-calculator/issues/",
+		"email": "capital-gains-calculator@davidosborn.io"
+	},
+	"license": "MIT",
+	"author": {
+		"name": "David Osborn",
+		"email": "david@davidosborn.io",
+		"url": "http://davidosborn.io/"
+	},
+	"bin": {
+		"calculate-capital-gains": "./index.js"
+	},
+	"dependencies": {
+		"babel-core": "*",
+		"babel-preset-env": "*",
+		"babel-preset-stage-0": "*",
+		"babel-register": "*",
+		"csv-parse": "*",
+		"markdown-table": "*",
+		"marked": "*",
+		"mergesort-stream2": "*",
+		"multistream": "*",
+		"node-fetch": "*",
+		"sort-stream2": "*",
+		"take-stream": "*",
+		"to-utf-8": "*"
+	},
+	"scripts": {
+		"start": "node --harmony index"
+	},
+	"private": true,
+	"babel": {
+		"presets": [
+			[
+				"env",
+				{
+					"targets": {
+						"node": "9"
+					}
+				}
+			],
+			"stage-0"
+		]
+	}
+}
