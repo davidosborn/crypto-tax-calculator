@@ -11,12 +11,15 @@ class CapitalGainsFormatStream extends stream.Transform {
 		})
 
 		this._amountFormat = new Intl.NumberFormat('en-CA', {
-			maximumFractionDigits: 8,
 			minimumFractionDigits: 8,
+			maximumFractionDigits: 8,
 			useGrouping: false
 		})
 
-		this._valueFormat = new Intl.NumberFormat('en-CA')
+		this._valueFormat = new Intl.NumberFormat('en-CA', {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		})
 	}
 
 	_transform(chunk, encoding, callback) {

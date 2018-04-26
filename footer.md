@@ -3,11 +3,11 @@
 Thank you for using my program!
 
 This software comes with no warranty.
-In particular, I am not an accountant, and I make no warranty on the validity of the results that are produced by this software.
-However, I have used it to calculate the capital gains for my own Canadian taxes.
+I am not an accountant, and I do not warrant the validity of the results.
+However, I have used this program to calculate my own capital gains.
 
-If this software is useful to you, and you want to provide renumeration, then I'm thankful.
-Send it to one of the following addresses:
+If this software is useful to you, and you want to provide renumeration,
+then send it to one of the following addresses:
 
 | Currency | Address                                    |
 |----------|--------------------------------------------|
