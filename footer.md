@@ -4,7 +4,7 @@ Thank you for using my program!
 
 This software comes with no warranty.
 I am not an accountant, and I do not warrant the validity of the results.
-However, I have used this program to calculate my own capital gains.
+However, I have used this program to calculate my own capital gains in 2017.
 
 If this software is useful to you, and you want to provide renumeration,
 then send it to one of the following addresses:

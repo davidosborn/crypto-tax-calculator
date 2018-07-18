@@ -1,10 +1,17 @@
 {
-	"name": "capital-gains-calculator",
+	"name": "crypto-capital-gains-calculator",
 	"version": "0.0.0",
-	"description": "Capital Gains Calculator",
+	"description": "Calculates capital gains from cryptocurrency using the adjusted cost base",
 	"keywords": [
+		"acb",
+		"adjusted cost base",
+		"canada",
+		"canada revenue agency",
+		"canadian",
 		"capital gains",
+		"cra",
 		"crypto",
+		"cryptocurrency",
 		"tax"
 	],
 	"homepage": "http://davidosborn.io/capital-gains-calculator/",
@@ -39,7 +46,6 @@
 	"scripts": {
 		"start": "node --harmony index"
 	},
-	"private": true,
 	"babel": {
 		"presets": [
 			[
