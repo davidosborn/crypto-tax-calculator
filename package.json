@@ -1,5 +1,5 @@
 {
-	"name": "@davidosborn/crypto-capital-gains-calculator",
+	"name": "@davidosborn/crypto-tax-calculator",
 	"version": "0.0.1",
 	"description": "Calculates capital gains from cryptocurrency using the adjusted cost base",
 	"keywords": [
@@ -14,9 +14,9 @@
 		"cryptocurrency",
 		"tax"
 	],
-	"homepage": "http://davidosborn.io/capital-gains-calculator/",
+	"homepage": "https://github.com/davidosborn/crypto-tax-calculator",
 	"bugs": {
-		"url": "http://davidosborn.io/capital-gains-calculator/",
+		"url": "https://github.com/davidosborn/crypto-tax-calculator",
 		"email": "david@davidosborn.io"
 	},
 	"license": "MIT",
@@ -26,7 +26,7 @@
 		"url": "http://davidosborn.io/"
 	},
 	"bin": {
-		"calculate-capital-gains": "./index.js"
+		"calculate-crypto-tax": "./index.js"
 	},
 	"dependencies": {
 		"babel-core": "*",
