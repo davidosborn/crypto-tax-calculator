@@ -1,4 +1,4 @@
-# Capital Gains Calculator
+# Crypto Capital Gains Calculator
 
 This software can calculate the capital gains for cryptocurrency assets from a set of trade logs,
 using the *adjusted cost base* (ACB), which is the standard for Canadian taxes.

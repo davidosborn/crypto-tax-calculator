@@ -1,5 +1,5 @@
 {
-	"name": "crypto-capital-gains-calculator",
+	"name": "@davidosborn/crypto-capital-gains-calculator",
 	"version": "0.0.0",
 	"description": "Calculates capital gains from cryptocurrency using the adjusted cost base",
 	"keywords": [
