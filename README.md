@@ -1,4 +1,4 @@
-# Crypto Capital Gains Calculator
+# Crypto Tax Calculator
 
 A tool to calculate the capital gains of cryptocurrency assets for Canadian taxes.
 The source data comes from a set of trade logs, which are provided by the exchanges.
