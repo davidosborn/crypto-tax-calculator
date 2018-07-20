@@ -1,6 +1,6 @@
 {
 	"name": "@davidosborn/crypto-tax-calculator",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"description": "A tool to calculate the capital gains of cryptocurrency assets for Canadian taxes",
 	"keywords": [
 		"acb",
