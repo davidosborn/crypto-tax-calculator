@@ -1,8 +1,4 @@
-
-Capital Gains Calculator
-
-Usage: calculate-capital-gains <csv-files...>
-
-Arguments:
+Crypto Tax Calculator
+Usage: crypto-tax-calculator [options] <csv-files...>
+Options:
   -h, --help   Display this message and exit.
-

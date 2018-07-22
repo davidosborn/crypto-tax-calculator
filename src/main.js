@@ -17,12 +17,12 @@ import tradeValueStream from './trade-value-stream'
 
 export default function main(args) {
 	if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
-		fs.createReadStream(__dirname + '/help.txt').pipe(process.stdout)
+		fs.createReadStream(__dirname + '/../res/help.txt').pipe(process.stdout)
 		return
 	}
 
 	multiStream([
-		fs.createReadStream(__dirname + '/header.md'),
+		fs.createReadStream(__dirname + '/../res/header.md'),
 		mergeSortStream(compareTradeTime,
 			args.map(function(a) {
 				return fs.createReadStream(a)
@@ -40,7 +40,7 @@ export default function main(args) {
 			.pipe(tradeSeparateStream())
 			.pipe(capitalGainsCalculateStream())
 			.pipe(capitalGainsFormatStream()),
-		fs.createReadStream(__dirname + '/footer.md')
+		fs.createReadStream(__dirname + '/../res/footer.md')
 	])
 		.pipe(markedStream())
 		.pipe(process.stdout)
