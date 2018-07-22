@@ -25,14 +25,9 @@
 		"email": "david@davidosborn.io",
 		"url": "http://davidosborn.io/"
 	},
-	"bin": {
-		"calculate-crypto-tax": "./index.js"
-	},
+	"main": "lib/index.js",
+	"bin": "lib/index.js",
 	"dependencies": {
-		"babel-core": "*",
-		"babel-preset-env": "*",
-		"babel-preset-stage-0": "*",
-		"babel-register": "*",
 		"csv-parse": "*",
 		"markdown-table": "*",
 		"marked": "*",
@@ -43,20 +38,33 @@
 		"take-stream": "*",
 		"to-utf-8": "*"
 	},
+	"devDependencies": {
+		"@babel/cli": "^7.0.0-beta",
+		"@babel/core": "^7.0.0-beta",
+		"@babel/plugin-proposal-optional-chaining": "^7.0.0-beta",
+		"@babel/preset-env": "^7.0.0-beta",
+		"@babel/preset-stage-0": "^7.0.0-beta",
+		"babel-preset-minify": "canary"
+	},
 	"scripts": {
+		"build": "npx babel -d lib src",
+		"prepublishOnly": "npm run build",
 		"start": "node --harmony index"
 	},
 	"babel": {
 		"presets": [
 			[
-				"env",
-				{
+				"@babel/env", {
 					"targets": {
-						"node": "9"
+						"node": "current"
 					}
 				}
 			],
-			"stage-0"
+			"@babel/stage-0",
+			"minify"
+		],
+		"plugins": [
+			"@babel/proposal-optional-chaining"
 		]
 	}
 }
