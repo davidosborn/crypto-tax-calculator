@@ -51,7 +51,7 @@
 	"scripts": {
 		"build": "npx babel -d lib src",
 		"prepublishOnly": "yarpm run build",
-		"start": "node --harmony lib"
+		"start": "node lib"
 	},
 	"babel": {
 		"presets": [
