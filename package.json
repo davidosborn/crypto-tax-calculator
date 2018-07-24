@@ -14,9 +14,9 @@
 		"cryptocurrency",
 		"tax"
 	],
-	"homepage": "https://github.com/davidosborn/crypto-tax-calculator",
+	"homepage": "https://github.com/davidosborn/crypto-tax-calculator#readme",
 	"bugs": {
-		"url": "https://github.com/davidosborn/crypto-tax-calculator",
+		"url": "https://github.com/davidosborn/crypto-tax-calculator/issues",
 		"email": "david@davidosborn.io"
 	},
 	"license": "MIT",
@@ -25,8 +25,20 @@
 		"email": "david@davidosborn.io",
 		"url": "http://davidosborn.io/"
 	},
+	"files": [
+		"lib"
+	],
 	"main": "lib/index.js",
 	"bin": "lib/index.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/davidosborn/crypto-tax-calculator"
+	},
+	"scripts": {
+		"build": "npx babel -d lib src",
+		"prepublishOnly": "npm run build",
+		"start": "npx babel-node src"
+	},
 	"dependencies": {
 		"csv-parse": "*",
 		"markdown-table": "*",
@@ -45,13 +57,10 @@
 		"@babel/plugin-proposal-optional-chaining": "^7.0.0-beta",
 		"@babel/preset-env": "^7.0.0-beta",
 		"@babel/preset-stage-0": "^7.0.0-beta",
-		"babel-preset-minify": "canary",
-		"yarpm": "*"
+		"babel-preset-minify": "canary"
 	},
-	"scripts": {
-		"build": "npx babel -d lib src",
-		"prepublishOnly": "yarpm run build",
-		"start": "node lib"
+	"publishConfig": {
+		"access": "public"
 	},
 	"babel": {
 		"presets": [
