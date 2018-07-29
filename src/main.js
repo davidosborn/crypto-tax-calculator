@@ -2,6 +2,7 @@
 
 import csvParse from 'csv-parse'
 import fs from 'fs'
+import getopts from 'getopts'
 import mergeSortStream from 'mergesort-stream2'
 import multiStream from 'multistream'
 import process from 'process'
@@ -16,15 +17,37 @@ import tradeSeparateStream from './trade-separate-stream'
 import tradeValueStream from './trade-value-stream'
 
 export default function main(args) {
-	if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+	// Parse the arguments.
+	let options = getopts(args, {
+		alias: {
+			f: 'file', // TODO: This is a hack to get around babel-node stealing the -o argument.
+			h: 'help',
+			m: 'markdown',
+			o: 'output'
+		},
+		boolean: ['h', 'm']
+	})
+
+	// TODO: This is a hack to get around babel-node stealing the -o argument.
+	options.file = options.file | options.output
+
+	// Handle the "help" option.
+	if (options.help || options._.length === 0) {
 		fs.createReadStream(__dirname + '/../res/help.txt').pipe(process.stdout)
 		return
 	}
 
-	multiStream([
+	console.log(options)
+
+	// Detect the output file as markdown.
+	if (!('markdown' in options) && options.output?.endsWith('.md'))
+		options.markdown = true
+
+	// Create a stream to calculate the capital gains.
+	let stream = multiStream([
 		fs.createReadStream(__dirname + '/../res/header.md'),
 		mergeSortStream(compareTradeTime,
-			args.map(function(a) {
+			options._.map(function(a) {
 				return fs.createReadStream(a)
 					.pipe(utf8())
 					.pipe(csvParse({
@@ -42,8 +65,13 @@ export default function main(args) {
 			.pipe(capitalGainsFormatStream()),
 		fs.createReadStream(__dirname + '/../res/footer.md')
 	])
-		.pipe(markedStream())
-		.pipe(process.stdout)
+
+	// Convert the results from markdown to HTML.
+	if (!options.markdown)
+		stream = stream.pipe(markedStream())
+
+	// Pipe the stream to the output file.
+	stream.pipe(options.output ? fs.createWriteStream(options.output) : process.stdout)
 }
 
 function compareTradeTime(a, b) {

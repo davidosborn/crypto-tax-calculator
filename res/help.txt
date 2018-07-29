@@ -1,4 +1,7 @@
 Crypto Tax Calculator
 Usage: crypto-tax-calculator [options] <csv-files...>
 Options:
-  -h, --help   Display this message and exit.
+  -f, --file=FILE    Write the result to FILE.
+  -h, --help         Display this message and exit.
+  -m, --markdown     Format the result as Markdown instead of HTML.
+  -o, --output=FILE  Write the result to FILE.
