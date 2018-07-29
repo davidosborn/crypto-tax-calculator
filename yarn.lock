@@ -722,8 +722,8 @@
     to-fast-properties "^2.0.0"
 
 "@davidosborn/babel-preset@*":
-  version "0.0.5"
-  resolved "https://registry.yarnpkg.com/@davidosborn/babel-preset/-/babel-preset-0.0.5.tgz#2311247f002287f2634b15f354548f0e39cfa577"
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/@davidosborn/babel-preset/-/babel-preset-0.0.6.tgz#f7537ab0bc545c887e6848a49ce9d0919ea83ef6"
   dependencies:
     "@babel/plugin-proposal-class-properties" "^7.0.0-beta"
     "@babel/plugin-proposal-decorators" "^7.0.0-beta"
