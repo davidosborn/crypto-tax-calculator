@@ -39,10 +39,10 @@ class CapitalGainsCalculateStream extends stream.Transform {
 
 		ledger.balance += chunk.amount
 
-		callback()
+		this.final(callback)
 	}
 
-	_final(callback) {
+	final(callback) {
 		// Calculate the aggregate disposition of each asset.
 		for (let ledger of this._ledgerByAsset.values())
 			ledger.aggregateDisposition = ledger.dispositions.reduce(
