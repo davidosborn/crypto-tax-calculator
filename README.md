@@ -12,6 +12,7 @@ The following exchanges are supported:
 
 ## TODO
 
+- The latest results differ from the previous results -- this indicates a bug.
 - Add support for more exchanges.
 - Refactor the code from trade parser for individual exchanges into separate modules.
 - Add more end-points for finding the value of an asset at a specific time.

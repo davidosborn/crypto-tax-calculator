@@ -1,8 +1,8 @@
 'use strict'
 
+import getopt, {usage} from '@davidosborn/getopt'
 import csvParse from 'csv-parse'
 import fs from 'fs'
-import getopts from 'getopts'
 import mergeSortStream from 'mergesort-stream2'
 import multiStream from 'multistream'
 import process from 'process'
@@ -18,37 +18,48 @@ import tradeValueStream from './trade-value-stream'
 
 export default function main(args) {
 	// Parse the arguments.
-	let options = getopts(args, {
-		alias: {
-			f: 'file', // TODO: This is a hack to get around babel-node stealing the -o argument.
-			h: 'help',
-			m: 'markdown',
-			o: 'output'
+	let opts = getopt(args, {
+		options: [
+			{
+				short: 'h',
+				long: 'help',
+				description: 'Display this usage information and exit.',
+				callback: usage
+			},
+			{
+				short: 'm',
+				long: 'markdown',
+				description: 'Format the output as Markdown instead of HTML.'
+			},
+			{
+				short: 'o',
+				long: 'output',
+				argument: 'file',
+				description: 'Write the output to the specified file.'
+			}
+		],
+		usage: {
+			header: 'Crypto Tax Calculator',
+			program: 'crypto-tax-calculator',
+			spec: '[option]... <csv-file>...'
 		},
-		boolean: ['h', 'm']
+		callback: function(opts, args, settings) {
+			// Show the usage when there is no input.
+			if (opts.parameters.length < 1 || !opts.parameters[0].value)
+				usage(settings)
+		}
 	})
 
-	// TODO: This is a hack to get around babel-node stealing the -o argument.
-	options.file = options.file | options.output
-
-	// Handle the "help" option.
-	if (options.help || options._.length === 0) {
-		fs.createReadStream(__dirname + '/../res/help.txt').pipe(process.stdout)
-		return
-	}
-
-	console.log(options)
-
 	// Detect the output file as markdown.
-	if (!('markdown' in options) && options.output?.endsWith('.md'))
-		options.markdown = true
+	if (!('markdown' in opts.options) && opts.options.output?.endsWith('.md'))
+		opts.options.markdown = true
 
 	// Create a stream to calculate the capital gains.
 	let stream = multiStream([
 		fs.createReadStream(__dirname + '/../res/header.md'),
 		mergeSortStream(compareTradeTime,
-			options._.map(function(a) {
-				return fs.createReadStream(a)
+			opts.parameters.map(function(a) {
+				return fs.createReadStream(a.value)
 					.pipe(utf8())
 					.pipe(csvParse({
 						auto_parse: true,
@@ -67,13 +78,19 @@ export default function main(args) {
 	])
 
 	// Convert the results from markdown to HTML.
-	if (!options.markdown)
+	if (!opts.options.markdown)
 		stream = stream.pipe(markedStream())
 
 	// Pipe the stream to the output file.
-	stream.pipe(options.output ? fs.createWriteStream(options.output) : process.stdout)
+	stream.pipe(opts.options.output ? fs.createWriteStream(opts.options.output) : process.stdout)
 }
 
+/**
+ * Compares trades by their time.
+ * @param {Object} a The first trade.
+ * @param {Object} b The second trade.
+ * @returns {Number} The result.
+ */
 function compareTradeTime(a, b) {
 	return a.time - b.time
 }

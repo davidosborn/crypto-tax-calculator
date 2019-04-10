@@ -42,8 +42,9 @@
 		"start": "node index"
 	},
 	"dependencies": {
+		"@davidosborn/getopt": "*",
+		"binary-search-bounds": "*",
 		"csv-parse": "*",
-		"getopts": "*",
 		"markdown-table": "*",
 		"marked": "*",
 		"mergesort-stream2": "*",
@@ -54,9 +55,9 @@
 		"to-utf-8": "*"
 	},
 	"devDependencies": {
-		"@babel/cli": "^7.0.0-beta",
-		"@babel/core": "^7.0.0-beta",
-		"@babel/register": "^7.0.0-beta",
+		"@babel/cli": "*",
+		"@babel/core": "*",
+		"@babel/register": "*",
 		"@davidosborn/babel-preset": "*"
 	},
 	"publishConfig": {

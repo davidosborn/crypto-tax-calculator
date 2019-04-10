@@ -2,6 +2,34 @@
 
 import stream from 'stream'
 
+/**
+ * A disposition.
+ * @typedef {object} Disposition
+ * @property {number} amount The amount.
+ * @property {number} acb    The adjusted cost base.
+ * @property {number} pod    The proceeds of disposition.
+ * @property {number} oae    The outlays and expenses.
+ * @property {number} gain   The capital gain (or loss).
+ */
+/**
+ * The ledger for an asset.
+ * @typedef {object} Ledger
+ * @property {number}              acb          The adjusted cost base.
+ * @property {number}              balance      The balance.
+ * @property {array.<Disposition>} dispositions The dispositions.
+ */
+/**
+ * The captial gains.
+ * @typedef {object} CapitalGains
+ * @property {array.<Trade>}           trades               The trades.
+ * @property {object.<string, Ledger>} ledgerByAsset        The ledger of each asset.
+ * @property {Disposition}             aggregateDisposition The aggregate disposition.
+ * @property {number}                  taxableGain          The taxable gain (or loss).
+ */
+
+/**
+ * A stream that calculates the capital gains.
+ */
 class CapitalGainsCalculateStream extends stream.Transform {
 	constructor() {
 		super({
@@ -12,6 +40,12 @@ class CapitalGainsCalculateStream extends stream.Transform {
 		this._ledgerByAsset = new Map
 	}
 
+	/**
+	 * Accumulates the capital gains for a transaction.
+	 * @param {Transaction} chunk    The transaction.
+	 * @param {string}      encoding The encoding type (always 'Buffer').
+	 * @param {function}    callback A callback for when the transformation is complete.
+	 */
 	_transform(chunk, encoding, callback) {
 		this._trades.push(chunk)
 

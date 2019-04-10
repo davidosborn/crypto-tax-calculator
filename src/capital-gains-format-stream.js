@@ -4,6 +4,9 @@ import markdownTable from 'markdown-table'
 import marked from 'marked'
 import stream from 'stream'
 
+/**
+ * A stream that formats the capital gains for the user.
+ */
 class CapitalGainsFormatStream extends stream.Transform {
 	constructor() {
 		super({
@@ -22,6 +25,12 @@ class CapitalGainsFormatStream extends stream.Transform {
 		})
 	}
 
+	/**
+	 * Formats the capital gains for the user.
+	 * @param {CapitalGains} chunk    The capital gains.
+	 * @param {string}       encoding The encoding type (always 'Buffer').
+	 * @param {function}     callback A callback for when the transformation is complete.
+	 */
 	_transform(chunk, encoding, callback) {
 		this._pushLine('## Trades')
 		this._pushLine(markdownTable(
