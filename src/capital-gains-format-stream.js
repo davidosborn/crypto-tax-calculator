@@ -32,9 +32,11 @@ class CapitalGainsFormatStream extends stream.Transform {
 	 * @param {function}     callback A callback for when the transformation is complete.
 	 */
 	_transform(chunk, encoding, callback) {
+		this._pushLine()
 		this._pushLine('## Trades')
 		this._pushLine(markdownTable(
 			[[
+				'Exchange',
 				'Asset',
 				'Units acquired (or disposed)',
 				'Value',
@@ -42,6 +44,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				'Date'
 			]]
 			.concat(Array.from(chunk.trades, trade => [
+				trade.exchange,
 				trade.asset,
 				this._formatAmount(trade.amount),
 				this._formatValue(trade.value),
@@ -55,9 +58,11 @@ class CapitalGainsFormatStream extends stream.Transform {
 			return a[0].localeCompare(b[0])
 		})
 
+		this._pushLine()
 		this._pushLine('## Dispositions')
 		this._pushLine(markdownTable(
 			[[
+				'Exchange',
 				'Asset',
 				'Units',
 				'Proceeds of disposition',
@@ -68,6 +73,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 			]]
 			.concat(...ledgerByAsset.map(([asset, ledger]) =>
 				Array.from(ledger.dispositions, disposition => [
+					disposition.exchange,
 					asset,
 					this._formatAmount(disposition.amount),
 					this._formatValue(disposition.pod),
@@ -78,6 +84,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				])
 			))))
 
+		this._pushLine()
 		this._pushLine('## Aggregate disposition per asset')
 		this._pushLine(markdownTable(
 			[[
@@ -97,6 +104,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				this._formatValue(ledger.aggregateDisposition.gain)
 			]))))
 
+		this._pushLine()
 		this._pushLine('## Summary per asset')
 		this._pushLine(markdownTable(
 			[[
@@ -112,6 +120,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				this._formatValue(ledger.acb)
 			]))))
 
+		this._pushLine()
 		this._pushLine('## Summary')
 		this._pushLine(markdownTable([
 			['Field', 'Value'],

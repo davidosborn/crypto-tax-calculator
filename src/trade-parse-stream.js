@@ -8,6 +8,7 @@ import CurrencyUtils from './currency-utils'
 /**
  * A trade.
  * @typedef {object} Trade
+ * @property {string}  exchange    The exchange on which the trade was executed.
  * @property {string}  baseAsset   The base currency.
  * @property {string}  quoteAsset  The quote currency.
  * @property {number}  baseAmount  The value of the base currency.
@@ -24,12 +25,62 @@ import CurrencyUtils from './currency-utils'
  * A stream that transforms CSV records into trades.
  */
 class TradeParseStream extends stream.Transform {
-	constructor() {
+	/**
+	 * The functions that can be used to parse a trade, indexed by the keys of the record.
+	 * @type {object.<string, function.<object>>}
+	 */
+	static _parsers = {
+		'Date(UTC)|Market|Type|Price|Amount|Total|Fee|Fee Coin':                     TradeParseStream.prototype._transformBinance,
+		'OrderUuid|Exchange|Type|Quantity|Limit|CommissionPaid|Price|Opened|Closed': TradeParseStream.prototype._transformBittrex,
+		'txid|refid|time|type|aclass|asset|amount|fee|balance':                      TradeParseStream.prototype._transformKraken
+	}
+
+	/**
+	 * Initializes a new instance.
+	 * @param {object}  [options]         The options.
+	 * @param {boolean} [options.verbose] A value indicating whether to write extra information to the console.
+	 */
+	constructor(options) {
 		super({
 			objectMode: true
 		})
 
+		this._options = options
+
+		/**
+		 * A buffer that can be used to store multiple chunks that make up a single trade.
+		 * @type {array.<object>}
+		 */
 		this._tradeChunks = []
+
+		/**
+		 * The keys of the unrecognized trades.
+		 * @type {Set}
+		 */
+		this._unrecognizedTrades = new Set()
+	}
+
+	/**
+	 * Pushes a chunk onto the readable stream.
+	 * @param {object}   chunk    The CSV record.
+	 * @param {string}   encoding The encoding type (always 'Buffer').
+	 */
+	push(chunk, encoding) {
+		if (this._options?.verbose && chunk?.exchange) {
+			let pair = chunk.baseAsset + '/' + chunk.quoteAsset
+			let time = new Date(chunk.time)
+				.toLocaleString(undefined, {
+					day: '2-digit',
+					hour: '2-digit',
+					hour12: false,
+					minute: '2-digit',
+					month: '2-digit',
+					year: 'numeric'
+				})
+			console.log('Parsed ' + pair + ' trade from ' + time + ' on ' + chunk.exchange + '.')
+		}
+
+		return super.push(chunk, encoding)
 	}
 
 	/**
@@ -39,46 +90,68 @@ class TradeParseStream extends stream.Transform {
 	 * @param {function} callback A callback for when the transformation is complete.
 	 */
 	async _transform(chunk, encoding, callback) {
-		if (chunk['Date(UTC)'] !== undefined)
-			await this._transformBinance(chunk)
-		else if (chunk.OrderUuid !== undefined)
-			await this._transformBittrex(chunk)
-		else if ((chunk.txid !== undefined) && (chunk.refid !== undefined))
-			await this._transformKraken(chunk)
+		delete chunk.flatten
+		delete chunk.flatMap
+
+		let keys = Object.keys(chunk).join('|')
+		let parser = TradeParseStream._parsers[keys]
+		if (parser)
+			await parser.call(this, chunk)
+		else if (!this._unrecognizedTrades.has(keys)) {
+			this._unrecognizedTrades.add(keys)
+			console.log('WARNING: Unrecognized trade keys: "' + keys + '".')
+		}
 
 		callback()
 	}
 
+	/**
+	 * Transforms a CSV record from Binance into a trade.
+	 * @param {object} chunk The CSV record.
+	 */
 	async _transformBinance(chunk) {
+		let amount = TradeParseStream._parseNumber(chunk.Amount)
+		let price = TradeParseStream._parseNumber(chunk.Price)
+
 		this.push({
+			exchange: 'Binance',
 			baseAsset: CurrencyUtils.normalizeCurrencyCode(chunk.Market.substring(chunk.Market.length - 3)),
 			quoteAsset: CurrencyUtils.normalizeCurrencyCode(chunk.Market.substring(0, chunk.Market.length - 3)),
-			baseAmount: chunk.Amount * chunk.Price,
-			quoteAmount: chunk.Amount,
+			baseAmount: amount * price,
+			quoteAmount: amount,
 			sell: chunk.Type.includes('SELL'),
-			time: new Date(chunk['Date(UTC)']).getTime(),
+			time: TradeParseStream._parseTime(chunk['Date(UTC)']),
 			feeAsset: CurrencyUtils.normalizeCurrencyCode(chunk['Fee Coin']),
-			feeAmount: chunk.Fee
+			feeAmount: TradeParseStream._parseNumber(chunk.Fee)
 		})
 	}
 
+	/**
+	 * Transforms a CSV record from Bittrex into a trade.
+	 * @param {object} chunk The CSV record.
+	 */
 	async _transformBittrex(chunk) {
 		let [baseAsset, quoteAsset] = chunk.Exchange.split('-')
 		baseAsset = CurrencyUtils.normalizeCurrencyCode(baseAsset)
 		quoteAsset = CurrencyUtils.normalizeCurrencyCode(quoteAsset)
 
 		this.push({
+			exchange: 'Bittrex',
 			baseAsset: baseAsset,
 			quoteAsset: quoteAsset,
-			baseAmount: chunk.Price,
-			quoteAmount: chunk.Quantity,
+			baseAmount: TradeParseStream._parseNumber(chunk.Price),
+			quoteAmount: TradeParseStream._parseNumber(chunk.Quantity),
 			sell: chunk.Type.includes('SELL'),
-			time: new Date(chunk.Closed).getTime(),
+			time: TradeParseStream._parseTime(chunk.Closed),
 			feeAsset: baseAsset,
-			feeAmount: chunk.CommissionPaid
+			feeAmount: TradeParseStream._parseNumber(chunk.CommissionPaid)
 		})
 	}
 
+	/**
+	 * Transforms a CSV record from Kraken into a trade.
+	 * @param {object} chunk The CSV record.
+	 */
 	async _transformKraken(chunk) {
 		let chunks = this._tradeChunks
 
@@ -86,9 +159,9 @@ class TradeParseStream extends stream.Transform {
 			// Normalize the properties of the chunk.
 			chunk = {
 				asset: CurrencyUtils.normalizeCurrencyCode(chunk.asset),
-				amount: chunk.amount,
-				time: new Date(chunk.time).getTime(),
-				fee: chunk.fee
+				amount: TradeParseStream._parseNumber(chunk.amount),
+				time: TradeParseStream._parseTime(chunk.time),
+				fee: TradeParseStream._parseNumber(chunk.fee)
 			}
 
 			// Process two consecutive trade chunks as a single trade.
@@ -105,6 +178,7 @@ class TradeParseStream extends stream.Transform {
 				let quoteChunk = chunks[+isCurrencyPairReversed]
 
 				this.push({
+					exchange: 'Kraken',
 					baseAsset: baseChunk.asset,
 					quoteAsset: quoteChunk.asset,
 					baseAmount: Math.abs(baseChunk.amount),
@@ -122,6 +196,24 @@ class TradeParseStream extends stream.Transform {
 			console.log('WARNING: Found unpaired trade chunk.')
 			chunks.length = 0
 		}
+	}
+
+	/**
+	 * Parses a number.
+	 * @param {string} s The string.
+	 * @returns {number} The number.
+	 */
+	static _parseNumber(s) {
+		return parseFloat(s.replace(',', ''))
+	}
+
+	/**
+	 * Parses a time.
+	 * @param {string} s The string.
+	 * @returns {number} The time, as a UNIX timestamp.
+	 */
+	static _parseTime(s) {
+		return new Date(s).getTime()
 	}
 }
 

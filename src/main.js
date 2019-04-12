@@ -1,9 +1,9 @@
 'use strict'
 
 import getopt, {usage} from '@davidosborn/getopt'
+import mergeSortStream from '@davidosborn/merge-sort-stream'
 import csvParse from 'csv-parse'
 import fs from 'fs'
-import mergeSortStream from 'mergesort-stream2'
 import multiStream from 'multistream'
 import process from 'process'
 import sortStream from 'sort-stream2'
@@ -11,6 +11,7 @@ import take from 'take-stream'
 import utf8 from 'to-utf-8'
 import capitalGainsCalculateStream from './capital-gains-calculate-stream'
 import capitalGainsFormatStream from './capital-gains-format-stream'
+import loadHistory from './load-history'
 import markedStream from './marked-stream'
 import tradeParseStream from './trade-parse-stream'
 import tradeSeparateStream from './trade-separate-stream'
@@ -27,6 +28,12 @@ export default function main(args) {
 				callback: usage
 			},
 			{
+				short: 'i',
+				long: 'history',
+				argument: 'path',
+				description: 'Read asset histories from the specified directory.'
+			},
+			{
 				short: 'm',
 				long: 'markdown',
 				description: 'Format the output as Markdown instead of HTML.'
@@ -36,6 +43,21 @@ export default function main(args) {
 				long: 'output',
 				argument: 'file',
 				description: 'Write the output to the specified file.'
+			},
+			{
+				short: 's',
+				long: 'silent',
+				description: 'Do not produce any output.'
+			},
+			{
+				short: 'v',
+				long: 'verbose',
+				description: 'Write extra information to the console.'
+			},
+			{
+				short: 'w',
+				long: 'web',
+				description: 'Request asset values from the internet.'
 			}
 		],
 		usage: {
@@ -50,27 +72,38 @@ export default function main(args) {
 		}
 	})
 
+	let sources = opts.parameters.map(function(p) {return p.value})
+	let destination = opts.options.output?.value
+
 	// Detect the output file as markdown.
-	if (!('markdown' in opts.options) && opts.options.output?.endsWith('.md'))
+	if (!('markdown' in opts.options) && destination?.endsWith('.md'))
 		opts.options.markdown = true
+
+	// Load the historical data.
+	let historyPath = opts.options.history?.value ?? __dirname + '/../history'
+	let history = historyPath ? loadHistory(historyPath) : null
 
 	// Create a stream to calculate the capital gains.
 	let stream = multiStream([
 		fs.createReadStream(__dirname + '/../res/header.md'),
-		mergeSortStream(compareTradeTime,
-			opts.parameters.map(function(a) {
-				return fs.createReadStream(a.value)
+		mergeSortStream(_compareTradeTime,
+			sources.map(function(path) {
+				return fs.createReadStream(path)
 					.pipe(utf8())
 					.pipe(csvParse({
-						auto_parse: true,
-						auto_parse_date: true,
 						columns: true,
 						skip_empty_lines: true
 					}))
-					.pipe(tradeParseStream())
-					.pipe(sortStream(compareTradeTime))
+					.pipe(tradeParseStream({
+						verbose: !!opts.options.verbose
+					}))
+					.pipe(sortStream(_compareTradeTime))
 			}))
-			.pipe(tradeValueStream())
+			.pipe(tradeValueStream({
+				history,
+				verbose: !!opts.options.verbose,
+				web: !!opts.options.web
+			}))
 			.pipe(tradeSeparateStream())
 			.pipe(capitalGainsCalculateStream())
 			.pipe(capitalGainsFormatStream()),
@@ -82,15 +115,16 @@ export default function main(args) {
 		stream = stream.pipe(markedStream())
 
 	// Pipe the stream to the output file.
-	stream.pipe(opts.options.output ? fs.createWriteStream(opts.options.output) : process.stdout)
+	if (!opts.options.silent)
+		stream.pipe(destination ? fs.createWriteStream(destination) : process.stdout)
 }
 
 /**
  * Compares trades by their time.
- * @param {Object} a The first trade.
- * @param {Object} b The second trade.
- * @returns {Number} The result.
+ * @param {object} a The first trade.
+ * @param {object} b The second trade.
+ * @returns {number} The result.
  */
-function compareTradeTime(a, b) {
+function _compareTradeTime(a, b) {
 	return a.time - b.time
 }

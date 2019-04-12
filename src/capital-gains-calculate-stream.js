@@ -5,11 +5,12 @@ import stream from 'stream'
 /**
  * A disposition.
  * @typedef {object} Disposition
- * @property {number} amount The amount.
- * @property {number} acb    The adjusted cost base.
- * @property {number} pod    The proceeds of disposition.
- * @property {number} oae    The outlays and expenses.
- * @property {number} gain   The capital gain (or loss).
+ * @property {string} [exchange] The exchange on which the disposition was executed.
+ * @property {number} amount     The amount.
+ * @property {number} acb        The adjusted cost base.
+ * @property {number} pod        The proceeds of disposition.
+ * @property {number} oae        The outlays and expenses.
+ * @property {number} gain       The capital gain (or loss).
  */
 /**
  * The ledger for an asset.
@@ -59,10 +60,11 @@ class CapitalGainsCalculateStream extends stream.Transform {
 
 		if (chunk.amount < 0) {
 			let disposition = {
-				amount: -chunk.amount,
-				pod:    chunk.value,
-				oae:    chunk.fee,
-				time:   chunk.time
+				exchange: chunk.exchange,
+				amount:  -chunk.amount,
+				pod:      chunk.value,
+				oae:      chunk.fee,
+				time:     chunk.time
 			}
 			disposition.acb = disposition.amount * ledger.acb
 			disposition.gain = disposition.pod - disposition.acb - disposition.oae

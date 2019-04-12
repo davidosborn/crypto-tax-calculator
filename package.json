@@ -43,11 +43,11 @@
 	},
 	"dependencies": {
 		"@davidosborn/getopt": "*",
+		"@davidosborn/merge-sort-stream": "*",
 		"binary-search-bounds": "*",
 		"csv-parse": "*",
 		"markdown-table": "*",
 		"marked": "*",
-		"mergesort-stream2": "*",
 		"multistream": "*",
 		"node-fetch": "*",
 		"sort-stream2": "*",

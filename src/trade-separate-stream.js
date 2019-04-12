@@ -6,11 +6,12 @@ import CurrencyUtils from './currency-utils'
 /**
  * A transaction.
  * @typedef {object} Transaction
- * @property {string} asset The asset.
- * @property {number} amount The amount of assets.
- * @property {number} time   The time of the transaction, as a UNIX timestamp.
- * @property {number} value  The value of the transaction, in Canadian dollars.
- * @property {number} fee    The transaction fee, in Canadian dollars.
+ * @property {string} exchange The exchange on which the transaction was executed.
+ * @property {string} asset    The asset.
+ * @property {number} amount   The amount of assets.
+ * @property {number} time     The time of the transaction, as a UNIX timestamp.
+ * @property {number} value    The value of the transaction, in Canadian dollars.
+ * @property {number} fee      The transaction fee, in Canadian dollars.
  */
 
 /**
@@ -31,6 +32,7 @@ class TradeSeparateStream extends stream.Transform {
 	 */
 	async _transform(chunk, encoding, callback) {
 		let baseChunk = {
+			exchange: chunk.exchange,
 			asset: chunk.baseAsset,
 			amount: chunk.baseAmount,
 			time: chunk.time,
@@ -38,6 +40,7 @@ class TradeSeparateStream extends stream.Transform {
 			fee: 0
 		}
 		let quoteChunk = {
+			exchange: chunk.exchange,
 			asset: chunk.quoteAsset,
 			amount: chunk.quoteAmount,
 			time: chunk.time,
