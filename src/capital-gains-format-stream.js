@@ -34,6 +34,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 	_transform(chunk, encoding, callback) {
 		this._pushLine()
 		this._pushLine('## Trades')
+		this._pushLine()
 		this._pushLine(markdownTable(
 			[[
 				'Exchange',
@@ -60,6 +61,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 
 		this._pushLine()
 		this._pushLine('## Dispositions')
+		this._pushLine()
 		this._pushLine(markdownTable(
 			[[
 				'Exchange',
@@ -86,6 +88,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 
 		this._pushLine()
 		this._pushLine('## Aggregate disposition per asset')
+		this._pushLine()
 		this._pushLine(markdownTable(
 			[[
 				'Asset',
@@ -106,6 +109,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 
 		this._pushLine()
 		this._pushLine('## Summary per asset')
+		this._pushLine()
 		this._pushLine(markdownTable(
 			[[
 				'Asset',
@@ -122,6 +126,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 
 		this._pushLine()
 		this._pushLine('## Summary')
+		this._pushLine()
 		this._pushLine(markdownTable([
 			['Field', 'Value'],
 			['Total proceeds of disposition', this._formatValue(chunk.aggregateDisposition.pod)],
@@ -130,6 +135,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 			['Total gain (or loss)',          this._formatValue(chunk.aggregateDisposition.gain)],
 			['Taxable gain (or loss)',        `**${this._formatValue(chunk.taxableGain)}**`]
 		]))
+		this._pushLine()
 
 		callback()
 	}
