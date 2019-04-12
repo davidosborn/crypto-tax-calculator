@@ -1,6 +1,7 @@
 'use strict'
 
 import stream from 'stream'
+import formatTime from './format-time'
 
 /**
  * A disposition.
@@ -39,6 +40,12 @@ class CapitalGainsCalculateStream extends stream.Transform {
 
 		this._trades = []
 		this._ledgerByAsset = new Map
+
+		/**
+		 * The assets that had a negative balance.
+		 * @type {Set}
+		 */
+		this._assetsWithNegativeBalance = new Set
 	}
 
 	/**
@@ -59,6 +66,12 @@ class CapitalGainsCalculateStream extends stream.Transform {
 			})
 
 		if (chunk.amount < 0) {
+			if (!ledger.balance) {
+				console.log('WARNING: Disposition of ' + chunk.asset + ' from an empty balance on ' + formatTime(chunk.time) + '.')
+			}
+
+			let acbPerUnit = ledger.balance ? ledger.acb / ledger.balance : 0
+
 			let disposition = {
 				exchange: chunk.exchange,
 				amount:  -chunk.amount,
@@ -66,14 +79,22 @@ class CapitalGainsCalculateStream extends stream.Transform {
 				oae:      chunk.fee,
 				time:     chunk.time
 			}
-			disposition.acb = disposition.amount * ledger.acb
+			disposition.acb = disposition.amount * acbPerUnit
 			disposition.gain = disposition.pod - disposition.acb - disposition.oae
 			ledger.dispositions.push(disposition)
+
+			ledger.acb += acbPerUnit * chunk.amount
 		}
 		else
-			ledger.acb = (ledger.acb * ledger.balance + chunk.value) / (ledger.balance + chunk.amount)
+			ledger.acb += chunk.value + chunk.fee
 
 		ledger.balance += chunk.amount
+
+		// Check whether the balance is negative, which would indicate an accounting error.
+		if (ledger.balance < -0.000000005 && !this._assetsWithNegativeBalance.has(chunk.asset)) {
+			this._assetsWithNegativeBalance.add(chunk.asset)
+			console.log('WARNING: Encountered a negative balance for ' + chunk.asset + '.')
+		}
 
 		callback()
 	}

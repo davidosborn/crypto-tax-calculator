@@ -3,7 +3,7 @@
 import fetch from 'node-fetch'
 import process from 'process'
 import stream from 'stream'
-import CurrencyUtils from './currency-utils'
+import Assets from './assets'
 
 /**
  * A trade.
@@ -11,14 +11,14 @@ import CurrencyUtils from './currency-utils'
  * @property {string}  exchange    The exchange on which the trade was executed.
  * @property {string}  baseAsset   The base currency.
  * @property {string}  quoteAsset  The quote currency.
- * @property {number}  baseAmount  The value of the base currency.
- * @property {number}  quoteAmount The value of the quote currency.
+ * @property {number}  baseAmount  The amount of the base currency.
+ * @property {number}  quoteAmount The amount of the quote currency.
  * @property {boolean} sell        True if the trade represents a sale.
  * @property {number}  time        The time at which the trade occurred, as a UNIX timestamp.
  * @property {string}  feeAsset    The currency of the trading fee.
- * @property {number}  feeAmount   The value of the trading fee.
- * @property {number}  [value]     The value of the trade in Canadian dollars.
- * @property {number}  [fee]       The value of the trading fee in Canadian dollars.
+ * @property {number}  feeAmount   The amount of the trading fee.
+ * @property {number}  [value]     The value of the assets, in Canadian dollars.
+ * @property {number}  [fee]       The value of the trading fee, in Canadian dollars.
  */
 
 /**
@@ -30,22 +30,19 @@ class TradeParseStream extends stream.Transform {
 	 * @type {object.<string, function.<object>>}
 	 */
 	static _parsers = {
-		'Date(UTC)|Market|Type|Price|Amount|Total|Fee|Fee Coin':                     TradeParseStream.prototype._transformBinance,
-		'OrderUuid|Exchange|Type|Quantity|Limit|CommissionPaid|Price|Opened|Closed': TradeParseStream.prototype._transformBittrex,
-		'txid|refid|time|type|aclass|asset|amount|fee|balance':                      TradeParseStream.prototype._transformKraken
+		'Date(UTC)|Market|Type|Price|Amount|Total|Fee|Fee Coin': TradeParseStream.prototype._transformBinance,
+		'OrderUuid|Exchange|Type|Quantity|Limit|CommissionPaid|Price|Opened|Closed': TradeParseStream.prototype._transformBittrex1,
+		'Uuid|Exchange|TimeStamp|OrderType|Limit|Quantity|QuantityRemaining|Commission|Price|PricePerUnit|IsConditional|Condition|ConditionTarget|ImmediateOrCancel|Closed': TradeParseStream.prototype._transformBittrex2,
+		'txid|refid|time|type|aclass|asset|amount|fee|balance': TradeParseStream.prototype._transformKraken
 	}
 
 	/**
 	 * Initializes a new instance.
-	 * @param {object}  [options]         The options.
-	 * @param {boolean} [options.verbose] A value indicating whether to write extra information to the console.
 	 */
-	constructor(options) {
+	constructor() {
 		super({
 			objectMode: true
 		})
-
-		this._options = options
 
 		/**
 		 * A buffer that can be used to store multiple chunks that make up a single trade.
@@ -57,30 +54,7 @@ class TradeParseStream extends stream.Transform {
 		 * The keys of the unrecognized trades.
 		 * @type {Set}
 		 */
-		this._unrecognizedTrades = new Set()
-	}
-
-	/**
-	 * Pushes a chunk onto the readable stream.
-	 * @param {object}   chunk    The CSV record.
-	 * @param {string}   encoding The encoding type (always 'Buffer').
-	 */
-	push(chunk, encoding) {
-		if (this._options?.verbose && chunk?.exchange) {
-			let pair = chunk.baseAsset + '/' + chunk.quoteAsset
-			let time = new Date(chunk.time)
-				.toLocaleString(undefined, {
-					day: '2-digit',
-					hour: '2-digit',
-					hour12: false,
-					minute: '2-digit',
-					month: '2-digit',
-					year: 'numeric'
-				})
-			console.log('Parsed ' + pair + ' trade from ' + time + ' on ' + chunk.exchange + '.')
-		}
-
-		return super.push(chunk, encoding)
+		this._unrecognizedTrades = new Set
 	}
 
 	/**
@@ -115,13 +89,13 @@ class TradeParseStream extends stream.Transform {
 
 		this.push({
 			exchange: 'Binance',
-			baseAsset: CurrencyUtils.normalizeCurrencyCode(chunk.Market.substring(chunk.Market.length - 3)),
-			quoteAsset: CurrencyUtils.normalizeCurrencyCode(chunk.Market.substring(0, chunk.Market.length - 3)),
+			baseAsset: Assets.normalizeCode(chunk.Market.substring(chunk.Market.length - 3)),
+			quoteAsset: Assets.normalizeCode(chunk.Market.substring(0, chunk.Market.length - 3)),
 			baseAmount: amount * price,
 			quoteAmount: amount,
 			sell: chunk.Type.includes('SELL'),
 			time: TradeParseStream._parseTime(chunk['Date(UTC)']),
-			feeAsset: CurrencyUtils.normalizeCurrencyCode(chunk['Fee Coin']),
+			feeAsset: Assets.normalizeCode(chunk['Fee Coin']),
 			feeAmount: TradeParseStream._parseNumber(chunk.Fee)
 		})
 	}
@@ -130,10 +104,10 @@ class TradeParseStream extends stream.Transform {
 	 * Transforms a CSV record from Bittrex into a trade.
 	 * @param {object} chunk The CSV record.
 	 */
-	async _transformBittrex(chunk) {
+	async _transformBittrex1(chunk) {
 		let [baseAsset, quoteAsset] = chunk.Exchange.split('-')
-		baseAsset = CurrencyUtils.normalizeCurrencyCode(baseAsset)
-		quoteAsset = CurrencyUtils.normalizeCurrencyCode(quoteAsset)
+		baseAsset = Assets.normalizeCode(baseAsset)
+		quoteAsset = Assets.normalizeCode(quoteAsset)
 
 		this.push({
 			exchange: 'Bittrex',
@@ -149,6 +123,28 @@ class TradeParseStream extends stream.Transform {
 	}
 
 	/**
+	 * Transforms a CSV record from Bittrex into a trade.
+	 * @param {object} chunk The CSV record.
+	 */
+	async _transformBittrex2(chunk) {
+		let [baseAsset, quoteAsset] = chunk.Exchange.split('-')
+		baseAsset = Assets.normalizeCode(baseAsset)
+		quoteAsset = Assets.normalizeCode(quoteAsset)
+
+		this.push({
+			exchange: 'Bittrex',
+			baseAsset: baseAsset,
+			quoteAsset: quoteAsset,
+			baseAmount: TradeParseStream._parseNumber(chunk.Price),
+			quoteAmount: TradeParseStream._parseNumber(chunk.Quantity),
+			sell: chunk.OrderType.includes('SELL'),
+			time: TradeParseStream._parseTime(chunk.TimeStamp),
+			feeAsset: baseAsset,
+			feeAmount: TradeParseStream._parseNumber(chunk.Commission)
+		})
+	}
+
+	/**
 	 * Transforms a CSV record from Kraken into a trade.
 	 * @param {object} chunk The CSV record.
 	 */
@@ -158,7 +154,7 @@ class TradeParseStream extends stream.Transform {
 		if (chunk.type === 'trade') {
 			// Normalize the properties of the chunk.
 			chunk = {
-				asset: CurrencyUtils.normalizeCurrencyCode(chunk.asset),
+				asset: Assets.normalizeCode(chunk.asset),
 				amount: TradeParseStream._parseNumber(chunk.amount),
 				time: TradeParseStream._parseTime(chunk.time),
 				fee: TradeParseStream._parseNumber(chunk.fee)
@@ -172,7 +168,7 @@ class TradeParseStream extends stream.Transform {
 					console.log('WARNING: Found paired trade chunks with different timestamps.')
 
 				// Determine which chunks represent the base and quote of the currency pair.
-				let priorities = chunks.map(c => CurrencyUtils.getCurrencyPriority(c.asset))
+				let priorities = chunks.map(c => Assets.getPriority(c.asset))
 				let isCurrencyPairReversed = priorities[0] < priorities[1]
 				let baseChunk = chunks[+!isCurrencyPairReversed]
 				let quoteChunk = chunks[+isCurrencyPairReversed]

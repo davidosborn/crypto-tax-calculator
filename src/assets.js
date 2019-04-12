@@ -1,9 +1,19 @@
 'use strict'
 
-export default class CurrencyUtils {
-	static normalizeCurrencyCode(code) {
+/**
+ * Functions for working with crypto-currency assets.
+ */
+export default class Assets {
+	/**
+	 * Normalizes a currency code.
+	 * @param {string} code The currency code.
+	 * @returns {string} The normalized currency code.
+	 */
+	static normalizeCode(code) {
 		code = code.toUpperCase()
 		switch (code) {
+			case 'BCC':
+				return 'BCH'
 			case 'XBT':
 			case 'XBTC':
 			case 'XXBT':
@@ -21,7 +31,12 @@ export default class CurrencyUtils {
 		}
 	}
 
-	static getCurrencyPriority(code) {
+	/**
+	 * Gets the priority of a currency.
+	 * @param {string} code The currency code.
+	 * @returns {number} The priority.
+	 */
+	static getPriority(code) {
 		switch (code) {
 			case 'CAD':
 			case 'USD':

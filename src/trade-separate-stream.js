@@ -1,7 +1,7 @@
 'use strict'
 
 import stream from 'stream'
-import CurrencyUtils from './currency-utils'
+import Assets from './assets'
 
 /**
  * A transaction.
@@ -63,7 +63,7 @@ class TradeSeparateStream extends stream.Transform {
 		// Drop the chunks that represent fiat currencies.
 		// TODO: This is questionable.
 		for (let i = 0; i < chunks.length; ++i)
-			if (CurrencyUtils.getCurrencyPriority(chunks[i].asset) === 0)
+			if (Assets.getPriority(chunks[i].asset) === 0)
 				chunks.splice(i--, 1);
 
 		for (let chunk of chunks)

@@ -35,8 +35,8 @@ export default function main(args) {
 			},
 			{
 				short: 'm',
-				long: 'markdown',
-				description: 'Format the output as Markdown instead of HTML.'
+				long: 'html',
+				description: 'Format the output as HTML instead of Markdown.'
 			},
 			{
 				short: 'o',
@@ -48,6 +48,12 @@ export default function main(args) {
 				short: 's',
 				long: 'silent',
 				description: 'Do not produce any output.'
+			},
+			{
+				short: 't',
+				long: 'take',
+				argument: 'count',
+				description: 'Do not process more than the specified number of trades.'
 			},
 			{
 				short: 'v',
@@ -75,30 +81,36 @@ export default function main(args) {
 	let sources = opts.parameters.map(function(p) {return p.value})
 	let destination = opts.options.output?.value
 
-	// Detect the output file as markdown.
-	if (!('markdown' in opts.options) && destination?.endsWith('.md'))
-		opts.options.markdown = true
+	// Detect the output file as HTML.
+	if (!('html' in opts.options) && (destination?.endsWith('.html') || destination?.endsWith('.htm')))
+		opts.options.html = true
 
 	// Load the historical data.
 	let historyPath = opts.options.history?.value ?? __dirname + '/../history'
 	let history = historyPath ? loadHistory(historyPath) : null
 
 	// Create a stream to calculate the capital gains.
-	let stream = multiStream([
+	// This takes a few steps.
+	let stream = mergeSortStream(_compareTradeTime,
+		sources.map(function(path) {
+			return fs.createReadStream(path)
+				.pipe(utf8())
+				.pipe(csvParse({
+					columns: true,
+					skip_empty_lines: true
+				}))
+				.pipe(tradeParseStream())
+				.pipe(sortStream(_compareTradeTime))
+		}))
+
+	// Limit the number of trades.
+	if (opts.options.take)
+		stream = stream.pipe(take(parseInt(opts.options.take.value)))
+
+	// Continue creating the stream.
+	stream = multiStream([
 		fs.createReadStream(__dirname + '/../res/header.md'),
-		mergeSortStream(_compareTradeTime,
-			sources.map(function(path) {
-				return fs.createReadStream(path)
-					.pipe(utf8())
-					.pipe(csvParse({
-						columns: true,
-						skip_empty_lines: true
-					}))
-					.pipe(tradeParseStream({
-						verbose: !!opts.options.verbose
-					}))
-					.pipe(sortStream(_compareTradeTime))
-			}))
+		stream
 			.pipe(tradeValueStream({
 				history,
 				verbose: !!opts.options.verbose,
@@ -110,8 +122,8 @@ export default function main(args) {
 		fs.createReadStream(__dirname + '/../res/footer.md')
 	])
 
-	// Convert the results from markdown to HTML.
-	if (!opts.options.markdown)
+	// Convert the output from Markdown to HTML.
+	if (opts.options.html)
 		stream = stream.pipe(markedStream())
 
 	// Pipe the stream to the output file.

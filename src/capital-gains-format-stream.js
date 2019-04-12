@@ -37,20 +37,20 @@ class CapitalGainsFormatStream extends stream.Transform {
 		this._pushLine()
 		this._pushLine(markdownTable(
 			[[
-				'Exchange',
 				'Asset',
 				'Units acquired (or disposed)',
 				'Value',
 				'Fee',
-				'Date'
+				'Date',
+				'Exchange'
 			]]
 			.concat(Array.from(chunk.trades, trade => [
-				trade.exchange,
 				trade.asset,
 				this._formatAmount(trade.amount),
 				this._formatValue(trade.value),
 				this._formatValue(trade.fee),
-				this._formatDate(trade.time)
+				this._formatDate(trade.time),
+				trade.exchange
 			]))))
 
 		// Sort the assets.
@@ -64,25 +64,25 @@ class CapitalGainsFormatStream extends stream.Transform {
 		this._pushLine()
 		this._pushLine(markdownTable(
 			[[
-				'Exchange',
 				'Asset',
 				'Units',
 				'Proceeds of disposition',
 				'Adjusted cost base',
 				'Outlays and expenses',
 				'Gain (or loss)',
-				'Date'
+				'Date',
+				'Exchange'
 			]]
 			.concat(...ledgerByAsset.map(([asset, ledger]) =>
 				Array.from(ledger.dispositions, disposition => [
-					disposition.exchange,
 					asset,
 					this._formatAmount(disposition.amount),
 					this._formatValue(disposition.pod),
 					this._formatValue(disposition.acb),
 					this._formatValue(disposition.oae),
 					this._formatValue(disposition.gain),
-					this._formatDate(disposition.time)
+					this._formatDate(disposition.time),
+					disposition.exchange
 				])
 			))))
 
@@ -142,14 +142,14 @@ class CapitalGainsFormatStream extends stream.Transform {
 
 	_formatAmount(amount) {
 		let amountString = this._amountFormat.format(Math.abs(amount))
-		if (amount < 0)
+		if (amount < -0.000000005)
 			amountString = `(${amountString})`
 		return amountString
 	}
 
 	_formatValue(value) {
 		let valueString = this._valueFormat.format(Math.abs(value))
-		if (value < 0)
+		if (value < -0.005)
 			valueString = `(${valueString})`
 		return '$' + valueString
 	}

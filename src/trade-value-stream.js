@@ -5,6 +5,7 @@ import fs from 'fs'
 import fetch from 'node-fetch'
 import stream from 'stream'
 import util from 'util'
+import formatTime from './format-time'
 
 /**
  * A stream that calculates the value of each trade.
@@ -32,6 +33,11 @@ class TradeValueStream extends stream.Transform {
 	 * @param {function} callback A callback for when the transformation is complete.
 	 */
 	async _transform(chunk, encoding, callback) {
+		// Log the trade.
+		if (this._options?.verbose) {
+			console.log('Trade ' + chunk.baseAsset + '/' + chunk.quoteAsset + ' on ' + formatTime(chunk.time) + (chunk.exchange ? ' on ' + chunk.exchange : '') + '.')
+		}
+
 		// Calculate the value of the asset.
 		chunk.value = await this._getValue(chunk.baseAsset, chunk.baseAmount, chunk.time)
 
@@ -67,16 +73,7 @@ class TradeValueStream extends stream.Transform {
 		if (!isNaN(value))
 			return value
 
-		let timeString = new Date(time)
-			.toLocaleString(undefined, {
-				day: '2-digit',
-				hour: '2-digit',
-				hour12: false,
-				minute: '2-digit',
-				month: '2-digit',
-				year: 'numeric'
-			})
-		console.log('WARNING: Unable to determine value of ' + amount + ' ' + asset + ' at ' + timeString + '.')
+		console.log('WARNING: Unable to determine value of ' + amount + ' ' + asset + ' at ' + formatTime(time) + '.')
 		throw new Error('Failed to convert ' + asset + ' to CAD.')
 	}
 
