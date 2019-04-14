@@ -1,5 +1,6 @@
 'use strict'
 
+import fromEntries from 'fromentries'
 import fs from 'fs'
 
 /**
@@ -8,7 +9,7 @@ import fs from 'fs'
  * @returns {object.<string, array>} The historical data, indexed by asset pair.
  */
 function loadHistory(path) {
-	return fs.readdirSync(path)
+	return fromEntries(fs.readdirSync(path)
 		.filter(function(file) {
 			return /[A-Za-z]+-[A-Za-z]+\.json/.test(file)
 		})
@@ -17,13 +18,7 @@ function loadHistory(path) {
 				file.split('.')[0].toUpperCase(),
 				JSON.parse(fs.readFileSync(path + '/' + file))
 			]
-		})
-		.reduce(
-			function(obj, [key, value]) {
-				obj[key] = value
-				return obj
-			},
-			{})
+		}))
 }
 
 export default loadHistory

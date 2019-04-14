@@ -1,0 +1,5 @@
+
+The initial balance of the assets can be defined by the '--balance' option.
+The argument is a comma-separated sequence of assets and their balances,
+in the form of '<asset>:<balance>,...', such as '--balance=BTC:1,ETH:5,LTC:10'.
+

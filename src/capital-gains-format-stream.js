@@ -19,9 +19,20 @@ class CapitalGainsFormatStream extends stream.Transform {
 			useGrouping: false
 		})
 
+		this._amountFormatNoTrailingZeros = new Intl.NumberFormat('en-CA', {
+			maximumFractionDigits: 8,
+			useGrouping: false
+		})
+
 		this._valueFormat = new Intl.NumberFormat('en-CA', {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
+		})
+
+		this._valueFormatNoGrouping = new Intl.NumberFormat('en-CA', {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+			useGrouping: false
 		})
 	}
 
@@ -32,6 +43,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 	 * @param {function}     callback A callback for when the transformation is complete.
 	 */
 	_transform(chunk, encoding, callback) {
+		// Write the trades.
 		this._pushLine()
 		this._pushLine('## Trades')
 		this._pushLine()
@@ -59,6 +71,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 			return a[0].localeCompare(b[0])
 		})
 
+		// Write the dispositions.
 		this._pushLine()
 		this._pushLine('## Dispositions')
 		this._pushLine()
@@ -86,6 +99,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				])
 			))))
 
+		// Write the aggregate disposition per asset.
 		this._pushLine()
 		this._pushLine('## Aggregate disposition per asset')
 		this._pushLine()
@@ -107,6 +121,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				this._formatValue(ledger.aggregateDisposition.gain)
 			]))))
 
+		// Write the summary per asset.
 		this._pushLine()
 		this._pushLine('## Summary per asset')
 		this._pushLine()
@@ -124,6 +139,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				this._formatValue(ledger.acb)
 			]))))
 
+		// Write the summary.
 		this._pushLine()
 		this._pushLine('## Summary')
 		this._pushLine()
@@ -135,6 +151,31 @@ class CapitalGainsFormatStream extends stream.Transform {
 			['Total gain (or loss)',          this._formatValue(chunk.aggregateDisposition.gain)],
 			['Taxable gain (or loss)',        `**${this._formatValue(chunk.taxableGain)}**`]
 		]))
+
+		// Find the assets that are carrying a balance.
+		let ledgerByAssetWithBalance = ledgerByAsset
+			.filter(([asset, ledger]) =>
+				ledger.balance < -0.000000005 ||
+				ledger.balance >= 0.000000005)
+
+		// Write the balance specification for next year.
+		if (ledgerByAssetWithBalance.length) {
+			this._pushLine()
+			this._pushLine('## Carry forward')
+			this._pushLine()
+			this._pushLine('The following specification can be passed to the calculator next year to carry forward the previous year\'s balance and adjusted cost base.')
+			this._pushLine()
+			this._pushLine('```')
+			this._pushLine('--forward=\\')
+			for (let [asset, ledger] of ledgerByAssetWithBalance) {
+				let last = asset === ledgerByAssetWithBalance[ledgerByAssetWithBalance.length - 1][0]
+				let balance = this._amountFormatNoTrailingZeros.format(ledger.balance)
+				let acb = this._valueFormatNoGrouping.format(ledger.acb)
+				this._pushLine(asset + ':' + balance + ':' + acb + (last ? '' : ',\\'))
+			}
+			this._pushLine('```')
+		}
+
 		this._pushLine()
 
 		callback()

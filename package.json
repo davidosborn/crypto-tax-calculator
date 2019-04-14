@@ -46,6 +46,7 @@
 		"@davidosborn/merge-sort-stream": "*",
 		"binary-search-bounds": "*",
 		"csv-parse": "*",
+		"fromentries": "*",
 		"markdown-table": "*",
 		"marked": "*",
 		"multistream": "*",

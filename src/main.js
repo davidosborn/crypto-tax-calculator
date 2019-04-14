@@ -3,6 +3,7 @@
 import getopt, {usage} from '@davidosborn/getopt'
 import mergeSortStream from '@davidosborn/merge-sort-stream'
 import csvParse from 'csv-parse'
+import fromEntries from 'fromentries'
 import fs from 'fs'
 import multiStream from 'multistream'
 import process from 'process'
@@ -22,16 +23,16 @@ export default function main(args) {
 	let opts = getopt(args, {
 		options: [
 			{
+				short: 'f',
+				long: 'forward',
+				argument: 'spec',
+				description: 'Define the initial balance and ACB of the assets.'
+			},
+			{
 				short: 'h',
 				long: 'help',
 				description: 'Display this usage information and exit.',
 				callback: usage
-			},
-			{
-				short: 'i',
-				long: 'history',
-				argument: 'path',
-				description: 'Read asset histories from the specified directory.'
 			},
 			{
 				short: 'm',
@@ -45,8 +46,8 @@ export default function main(args) {
 				description: 'Write the output to the specified file.'
 			},
 			{
-				short: 's',
-				long: 'silent',
+				short: 'q',
+				long: 'quiet',
 				description: 'Do not produce any output.'
 			},
 			{
@@ -63,11 +64,18 @@ export default function main(args) {
 			{
 				short: 'w',
 				long: 'web',
-				description: 'Request asset values from the internet.'
+				description: 'Request historical asset values from the internet.'
+			},
+			{
+				short: 'y',
+				long: 'history',
+				argument: 'path',
+				description: 'Read historical asset values from the specified directory.'
 			}
 		],
 		usage: {
-			header: 'Crypto Tax Calculator',
+			footer: fs.readFileSync(__dirname + '/../res/cmdline_footer.txt', 'utf8').replace(/([.,;:])\r?\n/g, '$1 '),
+			header: fs.readFileSync(__dirname + '/../res/cmdline_header.txt', 'utf8').replace(/([.,;:])\r?\n/g, '$1 '),
 			program: 'crypto-tax-calculator',
 			spec: '[option]... <csv-file>...'
 		},
@@ -84,6 +92,18 @@ export default function main(args) {
 	// Detect the output file as HTML.
 	if (!('html' in opts.options) && (destination?.endsWith('.html') || destination?.endsWith('.htm')))
 		opts.options.html = true
+
+	// Parse the initial balance and ACB of each asset.
+	let forward = null
+	if (opts.options.forward)
+		forward = fromEntries(opts.options.forward.value.split(',')
+			.map(function(spec) {
+				let [asset, balance, acb] = spec.split(':')
+				return [asset, {
+					balance: parseFloat(balance),
+					acb: parseFloat(acb)
+				}]
+			}))
 
 	// Load the historical data.
 	let historyPath = opts.options.history?.value ?? __dirname + '/../history'
@@ -109,7 +129,7 @@ export default function main(args) {
 
 	// Continue creating the stream.
 	stream = multiStream([
-		fs.createReadStream(__dirname + '/../res/header.md'),
+		fs.createReadStream(__dirname + '/../res/output_header.md'),
 		stream
 			.pipe(tradeValueStream({
 				history,
@@ -117,9 +137,11 @@ export default function main(args) {
 				web: !!opts.options.web
 			}))
 			.pipe(tradeSeparateStream())
-			.pipe(capitalGainsCalculateStream())
+			.pipe(capitalGainsCalculateStream({
+				forward
+			}))
 			.pipe(capitalGainsFormatStream()),
-		fs.createReadStream(__dirname + '/../res/footer.md')
+		fs.createReadStream(__dirname + '/../res/output_footer.md')
 	])
 
 	// Convert the output from Markdown to HTML.

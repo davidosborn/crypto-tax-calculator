@@ -28,17 +28,38 @@ import formatTime from './format-time'
  * @property {Disposition}             aggregateDisposition The aggregate disposition.
  * @property {number}                  taxableGain          The taxable gain (or loss).
  */
+/**
+ * The initial balance and ACB of an asset.
+ * This is typically carried forward from the previous year.
+ * @typedef {object} Forward
+ * @property {number} balance The balance.
+ * @property {number} acb     The adjusted cost base.
+ */
 
 /**
  * A stream that calculates the capital gains.
  */
 class CapitalGainsCalculateStream extends stream.Transform {
-	constructor() {
+	/**
+	 * Initializes a new instance.
+	 * @param {object}                   [options]         The options.
+	 * @param {object.<string, Forward>} [options.forward] The initial balance and ACB of each asset.
+	 */
+	constructor(options) {
 		super({
 			objectMode: true
 		})
 
+		/**
+		 * The trades.
+		 * @type {Trade}
+		 */
 		this._trades = []
+
+		/**
+		 * The ledger of each asset.
+		 * @type {Map.<string, Ledger>}
+		 */
 		this._ledgerByAsset = new Map
 
 		/**
@@ -46,6 +67,17 @@ class CapitalGainsCalculateStream extends stream.Transform {
 		 * @type {Set}
 		 */
 		this._assetsWithNegativeBalance = new Set
+
+		// Create the ledger for assets that have been carried forward from the previous year.
+		if (options?.forward) {
+			for (let [asset, forward] of Object.entries(options.forward)) {
+				this._ledgerByAsset.set(asset, {
+					acb: forward.acb,
+					balance: forward.balance,
+					dispositions: []
+				})
+			}
+		}
 	}
 
 	/**
@@ -145,7 +177,7 @@ class CapitalGainsCalculateStream extends stream.Transform {
 			trades: this._trades,
 			ledgerByAsset: this._ledgerByAsset,
 			aggregateDisposition: aggregateDisposition,
-			taxableGain: aggregateDisposition.gain * .5
+			taxableGain: aggregateDisposition.gain / 2 // Capital gains are taxable at 50%.
 		})
 
 		callback()
