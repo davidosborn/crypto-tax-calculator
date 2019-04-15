@@ -43,6 +43,24 @@ class CapitalGainsFormatStream extends stream.Transform {
 	 * @param {function}     callback A callback for when the transformation is complete.
 	 */
 	_transform(chunk, encoding, callback) {
+		// Write the balance that was carried forward from last year.
+		if (chunk.forwardByAsset.size) {
+			this._pushLine()
+			this._pushLine('## Carried forward from last year')
+			this._pushLine()
+			this._pushLine(markdownTable(
+				[[
+					'Asset',
+					'Balance',
+					'Adjusted cost base'
+				]]
+				.concat(Array.from(chunk.forwardByAsset, ([asset, forward]) => [
+					asset,
+					this._formatAmount(forward.balance),
+					this._formatValue(forward.acb)
+				]))))
+		}
+
 		// Write the trades.
 		this._pushLine()
 		this._pushLine('## Trades')
@@ -50,9 +68,11 @@ class CapitalGainsFormatStream extends stream.Transform {
 		this._pushLine(markdownTable(
 			[[
 				'Asset',
-				'Units acquired (or disposed)',
+				'Units acquired',
 				'Value',
+				'Balance',
 				'Fee',
+				'Fee asset',
 				'Date',
 				'Exchange'
 			]]
@@ -60,7 +80,9 @@ class CapitalGainsFormatStream extends stream.Transform {
 				trade.asset,
 				this._formatAmount(trade.amount),
 				this._formatValue(trade.value),
-				this._formatValue(trade.fee),
+				this._formatAmount(trade.balance),
+				this._formatAmount(trade.feeAmount),
+				trade.feeAsset,
 				this._formatDate(trade.time),
 				trade.exchange
 			]))))
@@ -99,6 +121,10 @@ class CapitalGainsFormatStream extends stream.Transform {
 				])
 			))))
 
+		// Find the assets with dispositions.
+		let ledgerByAssetWithDisposition = ledgerByAsset
+			.filter(([asset, ledger]) => ledger.dispositions.length)
+
 		// Write the aggregate disposition per asset.
 		this._pushLine()
 		this._pushLine('## Aggregate disposition per asset')
@@ -112,7 +138,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				'Outlays and expenses',
 				'Gain (or loss)'
 			]]
-			.concat(ledgerByAsset.map(([asset, ledger]) => [
+			.concat(ledgerByAssetWithDisposition.map(([asset, ledger]) => [
 				asset,
 				this._formatAmount(ledger.aggregateDisposition.amount),
 				this._formatValue(ledger.aggregateDisposition.pod),
@@ -161,12 +187,12 @@ class CapitalGainsFormatStream extends stream.Transform {
 		// Write the balance specification for next year.
 		if (ledgerByAssetWithBalance.length) {
 			this._pushLine()
-			this._pushLine('## Carry forward')
+			this._pushLine('## Carry forward to the next year')
 			this._pushLine()
-			this._pushLine('The following specification can be passed to the calculator next year to carry forward the previous year\'s balance and adjusted cost base.')
+			this._pushLine('The following specification can be passed to the calculator next year to carry forward this year\'s balance and adjusted cost base.')
 			this._pushLine()
 			this._pushLine('```')
-			this._pushLine('--forward=\\')
+			this._pushLine('--init=\\')
 			for (let [asset, ledger] of ledgerByAssetWithBalance) {
 				let last = asset === ledgerByAssetWithBalance[ledgerByAssetWithBalance.length - 1][0]
 				let balance = this._amountFormatNoTrailingZeros.format(ledger.balance)
@@ -199,7 +225,10 @@ class CapitalGainsFormatStream extends stream.Transform {
 		return new Date(time)
 			.toLocaleDateString('en-CA', {
 				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
 				month: 'short',
+				second: '2-digit',
 				year: 'numeric'
 			})
 	}

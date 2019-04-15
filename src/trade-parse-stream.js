@@ -13,12 +13,12 @@ import Assets from './assets'
  * @property {string}  quoteAsset  The quote currency.
  * @property {number}  baseAmount  The amount of the base currency.
  * @property {number}  quoteAmount The amount of the quote currency.
+ * @property {number}  [value]     The value of the assets, in Canadian dollars.
  * @property {boolean} sell        True if the trade represents a sale.
  * @property {number}  time        The time at which the trade occurred, as a UNIX timestamp.
- * @property {string}  feeAsset    The currency of the trading fee.
- * @property {number}  feeAmount   The amount of the trading fee.
- * @property {number}  [value]     The value of the assets, in Canadian dollars.
- * @property {number}  [fee]       The value of the trading fee, in Canadian dollars.
+ * @property {string}  feeAsset    The currency of the transaction fee.
+ * @property {number}  feeAmount   The amount of the transaction fee.
+ * @property {number}  [feeValue]  The value of the transaction fee, in Canadian dollars.
  */
 
 /**
@@ -131,12 +131,15 @@ class TradeParseStream extends stream.Transform {
 		baseAsset = Assets.normalizeCode(baseAsset)
 		quoteAsset = Assets.normalizeCode(quoteAsset)
 
+		let quantity = TradeParseStream._parseNumber(chunk.Quantity)
+		let quantityRemaining = TradeParseStream._parseNumber(chunk.QuantityRemaining)
+
 		this.push({
 			exchange: 'Bittrex',
 			baseAsset: baseAsset,
 			quoteAsset: quoteAsset,
 			baseAmount: TradeParseStream._parseNumber(chunk.Price),
-			quoteAmount: TradeParseStream._parseNumber(chunk.Quantity),
+			quoteAmount: quantity - quantityRemaining,
 			sell: chunk.OrderType.includes('SELL'),
 			time: TradeParseStream._parseTime(chunk.TimeStamp),
 			feeAsset: baseAsset,
@@ -151,45 +154,48 @@ class TradeParseStream extends stream.Transform {
 	async _transformKraken(chunk) {
 		let chunks = this._tradeChunks
 
-		if (chunk.type === 'trade') {
-			// Normalize the properties of the chunk.
-			chunk = {
-				asset: Assets.normalizeCode(chunk.asset),
-				amount: TradeParseStream._parseNumber(chunk.amount),
-				time: TradeParseStream._parseTime(chunk.time),
-				fee: TradeParseStream._parseNumber(chunk.fee)
-			}
-
-			// Process two consecutive trade chunks as a single trade.
-			chunks.push(chunk)
-			if (chunks.length === 2) {
-				// Ensure the chunks have the same timestamp.
-				if (chunks[0].time !== chunks[1].time)
-					console.log('WARNING: Found paired trade chunks with different timestamps.')
-
-				// Determine which chunks represent the base and quote of the currency pair.
-				let priorities = chunks.map(c => Assets.getPriority(c.asset))
-				let isCurrencyPairReversed = priorities[0] < priorities[1]
-				let baseChunk = chunks[+!isCurrencyPairReversed]
-				let quoteChunk = chunks[+isCurrencyPairReversed]
-
-				this.push({
-					exchange: 'Kraken',
-					baseAsset: baseChunk.asset,
-					quoteAsset: quoteChunk.asset,
-					baseAmount: Math.abs(baseChunk.amount),
-					quoteAmount: Math.abs(quoteChunk.amount),
-					sell: baseChunk.amount > 0,
-					time: baseChunk.time,
-					feeAsset: baseChunk.asset,
-					feeAmount: baseChunk.fee
-				})
-
+		// We only care about trades.
+		if (chunk.type !== 'trade') {
+			if (chunks.length > 0) {
+				console.log('WARNING: Found unpaired trade chunk.')
 				chunks.length = 0
 			}
+			return
 		}
-		else if (chunks.length > 0) {
-			console.log('WARNING: Found unpaired trade chunk.')
+
+		// Normalize the properties of the chunk.
+		chunk = {
+			asset: Assets.normalizeCode(chunk.asset),
+			amount: TradeParseStream._parseNumber(chunk.amount),
+			time: TradeParseStream._parseTime(chunk.time),
+			fee: TradeParseStream._parseNumber(chunk.fee)
+		}
+
+		// Process two consecutive trade chunks as a single trade.
+		chunks.push(chunk)
+		if (chunks.length === 2) {
+			// Ensure the chunks have the same timestamp.
+			if (chunks[0].time !== chunks[1].time)
+				console.log('WARNING: Found paired trade chunks with different timestamps.')
+
+			// Determine which chunks represent the base and quote of the currency pair.
+			let priorities = chunks.map(c => Assets.getPriority(c.asset))
+			let isCurrencyPairReversed = priorities[0] < priorities[1]
+			let baseChunk = chunks[+!isCurrencyPairReversed]
+			let quoteChunk = chunks[+isCurrencyPairReversed]
+
+			this.push({
+				exchange: 'Kraken',
+				baseAsset: baseChunk.asset,
+				quoteAsset: quoteChunk.asset,
+				baseAmount: Math.abs(baseChunk.amount),
+				quoteAmount: Math.abs(quoteChunk.amount),
+				sell: baseChunk.amount > 0,
+				time: baseChunk.time,
+				feeAsset: baseChunk.asset,
+				feeAmount: baseChunk.fee
+			})
+
 			chunks.length = 0
 		}
 	}

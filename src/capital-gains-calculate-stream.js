@@ -23,14 +23,14 @@ import formatTime from './format-time'
 /**
  * The captial gains.
  * @typedef {object} CapitalGains
- * @property {array.<Trade>}           trades               The trades.
- * @property {object.<string, Ledger>} ledgerByAsset        The ledger of each asset.
- * @property {Disposition}             aggregateDisposition The aggregate disposition.
- * @property {number}                  taxableGain          The taxable gain (or loss).
+ * @property {Map.<string, Forward>} forwardByAsset       The assets that were carried forward from last year.
+ * @property {array.<Trade>}         trades               The trades.
+ * @property {Map.<string, Ledger>}  ledgerByAsset        The ledger of each asset.
+ * @property {Disposition}           aggregateDisposition The aggregate disposition.
+ * @property {number}                taxableGain          The taxable gain (or loss).
  */
 /**
- * The initial balance and ACB of an asset.
- * This is typically carried forward from the previous year.
+ * The initial balance and ACB of an asset that was carried forward from last year.
  * @typedef {object} Forward
  * @property {number} balance The balance.
  * @property {number} acb     The adjusted cost base.
@@ -42,13 +42,23 @@ import formatTime from './format-time'
 class CapitalGainsCalculateStream extends stream.Transform {
 	/**
 	 * Initializes a new instance.
-	 * @param {object}                   [options]         The options.
-	 * @param {object.<string, Forward>} [options.forward] The initial balance and ACB of each asset.
+	 * @param {object}                   [options]                The options.
+	 * @param {object.<string, Forward>} [options.forwardByAsset] The assets to carry forward from last year.
 	 */
 	constructor(options) {
 		super({
 			objectMode: true
 		})
+
+		this._options = options
+
+		/**
+		 * The assets to carry forward from last year.
+		 * @type {Map.<string, Ledger>}
+		 */
+		this._forwardByAsset = new Map(this._options?.forwardByAsset
+			? Object.entries(this._options.forwardByAsset)
+			: [])
 
 		/**
 		 * The trades.
@@ -68,9 +78,9 @@ class CapitalGainsCalculateStream extends stream.Transform {
 		 */
 		this._assetsWithNegativeBalance = new Set
 
-		// Create the ledger for assets that have been carried forward from the previous year.
-		if (options?.forward) {
-			for (let [asset, forward] of Object.entries(options.forward)) {
+		// Initialize the ledger of the assets to carry forward from last year.
+		if (this._forwardByAsset) {
+			for (let [asset, forward] of this._forwardByAsset) {
 				this._ledgerByAsset.set(asset, {
 					acb: forward.acb,
 					balance: forward.balance,
@@ -108,7 +118,7 @@ class CapitalGainsCalculateStream extends stream.Transform {
 				exchange: chunk.exchange,
 				amount:  -chunk.amount,
 				pod:      chunk.value,
-				oae:      chunk.fee,
+				oae:      chunk.feeValue,
 				time:     chunk.time
 			}
 			disposition.acb = disposition.amount * acbPerUnit
@@ -118,9 +128,23 @@ class CapitalGainsCalculateStream extends stream.Transform {
 			ledger.acb += acbPerUnit * chunk.amount
 		}
 		else
-			ledger.acb += chunk.value + chunk.fee
+			ledger.acb += chunk.value + chunk.feeValue
 
+		// Update the balance.
 		ledger.balance += chunk.amount
+
+		// Remove the transaction fee from the balance.
+		if (chunk.feeAmount) {
+			let feeLedger = this._ledgerByAsset.get(chunk.feeAsset)
+			if (feeLedger !== undefined) {
+				let feeAcbPerUnit = feeLedger.balance ? feeLedger.acb / feeLedger.balance : 0
+				feeLedger.acb -= feeAcbPerUnit * chunk.feeAmount
+				feeLedger.balance -= chunk.feeAmount
+			}
+		}
+
+		// Record the balance in the trade.
+		chunk.balance = ledger.balance
 
 		// Check whether the balance is negative, which would indicate an accounting error.
 		if (ledger.balance < -0.000000005 && !this._assetsWithNegativeBalance.has(chunk.asset)) {
@@ -174,6 +198,7 @@ class CapitalGainsCalculateStream extends stream.Transform {
 				})
 
 		this.push({
+			forwardByAsset: this._forwardByAsset,
 			trades: this._trades,
 			ledgerByAsset: this._ledgerByAsset,
 			aggregateDisposition: aggregateDisposition,

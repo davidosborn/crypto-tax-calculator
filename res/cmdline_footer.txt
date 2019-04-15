@@ -1,5 +1,7 @@
 
-The initial balance of the assets can be defined by the '--balance' option.
-The argument is a comma-separated sequence of assets and their balances,
-in the form of '<asset>:<balance>,...', such as '--balance=BTC:1,ETH:5,LTC:10'.
+The calculation can be limited to a subset of the available assets by the '--assets' option.
+The argument is a comma-separated list of assets.
 
+The balances can be carried forward from last year by the '--init' option.
+The argument is a comma-separated list of assets, each with its balance and adjusted cost base,
+in the form of '<asset>:<balance>:<acb>,...', such as '--init=BTC:1:5000,ETH:5:1000,LTC:10:80'.

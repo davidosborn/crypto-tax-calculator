@@ -9,15 +9,17 @@ import Assets from './assets'
  * @property {string} exchange The exchange on which the transaction was executed.
  * @property {string} asset    The asset.
  * @property {number} amount   The amount of assets.
- * @property {number} time     The time of the transaction, as a UNIX timestamp.
  * @property {number} value    The value of the transaction, in Canadian dollars.
- * @property {number} fee      The transaction fee, in Canadian dollars.
+ * @property {number} time     The time of the transaction, as a UNIX timestamp.
+ * @property {string} feeAsset  The currency of the transaction fee.
+ * @property {number} feeAmount The amount of the transaction fee.
+ * @property {number} feeValue The value of the transaction fee, in Canadian dollars.
  */
 
 /**
  * A stream that breaks up assets trades into currency transactions.
  */
-class TradeSeparateStream extends stream.Transform {
+class TradeTransactionsStream extends stream.Transform {
 	constructor() {
 		super({
 			objectMode: true
@@ -35,33 +37,46 @@ class TradeSeparateStream extends stream.Transform {
 			exchange: chunk.exchange,
 			asset: chunk.baseAsset,
 			amount: chunk.baseAmount,
-			time: chunk.time,
 			value: chunk.value,
-			fee: 0
+			time: chunk.time,
+			feeAsset: chunk.baseAsset,
+			feeAmount: 0,
+			feeValue: 0
 		}
 		let quoteChunk = {
 			exchange: chunk.exchange,
 			asset: chunk.quoteAsset,
 			amount: chunk.quoteAmount,
-			time: chunk.time,
 			value: chunk.value,
-			fee: 0
+			time: chunk.time,
+			feeAsset: chunk.quoteAsset,
+			feeAmount: 0,
+			feeValue: 0
 		}
 
 		let chunks = [baseChunk, quoteChunk]
 
 		if (chunk.sell) {
 			quoteChunk.amount = -quoteChunk.amount
-			quoteChunk.fee = chunk.fee
 			chunks.reverse()
 		}
 		else {
 			baseChunk.amount = -baseChunk.amount
-			baseChunk.fee = chunk.fee
+		}
+
+		// Copy the fee.
+		if (chunk.sell) {
+			quoteChunk.feeAsset = chunk.feeAsset
+			quoteChunk.feeAmount = chunk.feeAmount
+			quoteChunk.feeValue = chunk.feeValue
+		}
+		else {
+			baseChunk.feeAsset = chunk.feeAsset
+			baseChunk.feeAmount = chunk.feeAmount
+			baseChunk.feeValue = chunk.feeValue
 		}
 
 		// Drop the chunks that represent fiat currencies.
-		// TODO: This is questionable.
 		for (let i = 0; i < chunks.length; ++i)
 			if (Assets.getPriority(chunks[i].asset) === 0)
 				chunks.splice(i--, 1);
@@ -74,5 +89,5 @@ class TradeSeparateStream extends stream.Transform {
 }
 
 export default function(...args) {
-	return new TradeSeparateStream(...args)
+	return new TradeTransactionsStream(...args)
 }

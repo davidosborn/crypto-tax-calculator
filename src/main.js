@@ -10,29 +10,37 @@ import process from 'process'
 import sortStream from 'sort-stream2'
 import take from 'take-stream'
 import utf8 from 'to-utf-8'
+import Assets from './assets'
 import capitalGainsCalculateStream from './capital-gains-calculate-stream'
 import capitalGainsFormatStream from './capital-gains-format-stream'
 import loadHistory from './load-history'
 import markedStream from './marked-stream'
 import tradeParseStream from './trade-parse-stream'
-import tradeSeparateStream from './trade-separate-stream'
+import tradeTransactionsStream from './trade-transactions-stream'
 import tradeValueStream from './trade-value-stream'
+import transactionFilterStream from './transaction-filter-stream'
 
 export default function main(args) {
 	// Parse the arguments.
 	let opts = getopt(args, {
 		options: [
 			{
-				short: 'f',
-				long: 'forward',
+				short: 'a',
+				long: ['assets', 'asset'],
 				argument: 'spec',
-				description: 'Define the initial balance and ACB of the assets.'
+				description: 'Only consider the specified assets.'
 			},
 			{
 				short: 'h',
 				long: 'help',
 				description: 'Display this usage information and exit.',
 				callback: usage
+			},
+			{
+				short: 'i',
+				long: 'init',
+				argument: 'spec',
+				description: 'Define the initial balance and ACB of the assets.'
 			},
 			{
 				short: 'm',
@@ -74,8 +82,8 @@ export default function main(args) {
 			}
 		],
 		usage: {
-			footer: fs.readFileSync(__dirname + '/../res/cmdline_footer.txt', 'utf8').replace(/([.,;:])\r?\n/g, '$1 '),
-			header: fs.readFileSync(__dirname + '/../res/cmdline_header.txt', 'utf8').replace(/([.,;:])\r?\n/g, '$1 '),
+			footer: fs.readFileSync(__dirname + '/../res/cmdline_footer.txt', 'utf8').replace(/([.,;:])\r?\n([A-Za-z])/g, '$1 $2'),
+			header: fs.readFileSync(__dirname + '/../res/cmdline_header.txt', 'utf8').replace(/([.,;:])\r?\n([A-Za-z])/g, '$1 $2'),
 			program: 'crypto-tax-calculator',
 			spec: '[option]... <csv-file>...'
 		},
@@ -93,10 +101,10 @@ export default function main(args) {
 	if (!('html' in opts.options) && (destination?.endsWith('.html') || destination?.endsWith('.htm')))
 		opts.options.html = true
 
-	// Parse the initial balance and ACB of each asset.
-	let forward = null
-	if (opts.options.forward)
-		forward = fromEntries(opts.options.forward.value.split(',')
+	// Parse the initial balance and ACB of each asset to carry it forward from last year.
+	let forwardByAsset = null
+	if (opts.options.init)
+		forwardByAsset = fromEntries(opts.options.init.value.split(',')
 			.map(function(spec) {
 				let [asset, balance, acb] = spec.split(':')
 				return [asset, {
@@ -127,18 +135,26 @@ export default function main(args) {
 	if (opts.options.take)
 		stream = stream.pipe(take(parseInt(opts.options.take.value)))
 
-	// Continue creating the stream.
+	stream = stream
+		.pipe(tradeValueStream({
+			history,
+			verbose: !!opts.options.verbose,
+			web: !!opts.options.web
+		}))
+		.pipe(tradeTransactionsStream())
+
+	// Limit the assets.
+	if (opts.options.assets)
+		stream = stream.pipe(transactionFilterStream({
+			assets: new Set(opts.options.assets.value.split(',').map(Assets.normalizeCode))
+		}))
+
+	// Calculate the capital gains.
 	stream = multiStream([
 		fs.createReadStream(__dirname + '/../res/output_header.md'),
 		stream
-			.pipe(tradeValueStream({
-				history,
-				verbose: !!opts.options.verbose,
-				web: !!opts.options.web
-			}))
-			.pipe(tradeSeparateStream())
 			.pipe(capitalGainsCalculateStream({
-				forward
+				forwardByAsset
 			}))
 			.pipe(capitalGainsFormatStream()),
 		fs.createReadStream(__dirname + '/../res/output_footer.md')
