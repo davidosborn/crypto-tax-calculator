@@ -5,6 +5,7 @@ import mergeSortStream from '@davidosborn/merge-sort-stream'
 import csvParse from 'csv-parse'
 import fromEntries from 'fromentries'
 import fs from 'fs'
+import lineStream from 'line-stream'
 import multiStream from 'multistream'
 import process from 'process'
 import sortStream from 'sort-stream2'
@@ -15,10 +16,11 @@ import capitalGainsCalculateStream from './capital-gains-calculate-stream'
 import capitalGainsFormatStream from './capital-gains-format-stream'
 import loadHistory from './load-history'
 import markedStream from './marked-stream'
+import csvNormalizeStream from './csv-normalize-stream'
+import tradeFilterStream from './trade-filter-stream'
 import tradeParseStream from './trade-parse-stream'
 import tradeTransactionsStream from './trade-transactions-stream'
 import tradeValueStream from './trade-value-stream'
-import transactionFilterStream from './transaction-filter-stream'
 
 export default function main(args) {
 	// Parse the arguments.
@@ -28,7 +30,7 @@ export default function main(args) {
 				short: 'a',
 				long: ['assets', 'asset'],
 				argument: 'spec',
-				description: 'Only consider the specified assets.'
+				description: 'Only consider trades involving the specified assets.'
 			},
 			{
 				short: 'h',
@@ -45,18 +47,18 @@ export default function main(args) {
 			{
 				short: 'm',
 				long: 'html',
-				description: 'Format the output as HTML instead of Markdown.'
+				description: 'Format the results as HTML instead of Markdown.'
 			},
 			{
 				short: 'o',
 				long: 'output',
 				argument: 'file',
-				description: 'Write the output to the specified file.'
+				description: 'Write the results to the specified file.'
 			},
 			{
 				short: 'q',
 				long: 'quiet',
-				description: 'Do not produce any output.'
+				description: 'Do not write the results.'
 			},
 			{
 				short: 't',
@@ -101,10 +103,15 @@ export default function main(args) {
 	if (!('html' in opts.options) && (destination?.endsWith('.html') || destination?.endsWith('.htm')))
 		opts.options.html = true
 
+	// Parse the assets to retain when filtering the trades.
+	let assets = undefined
+	if (opts.options.assets)
+		assets = new Set(opts.options.assets.value.split(',').map(Assets.normalizeCode))
+
 	// Parse the initial balance and ACB of each asset to carry it forward from last year.
-	let forwardByAsset = null
-	if (opts.options.init)
-		forwardByAsset = fromEntries(opts.options.init.value.split(',')
+	let forwardByAsset = undefined
+	if (opts.options.init) {
+		forwardByAsset = new Map(opts.options.init.value.split(',')
 			.map(function(spec) {
 				let [asset, balance, acb] = spec.split(':')
 				return [asset, {
@@ -112,6 +119,7 @@ export default function main(args) {
 					acb: parseFloat(acb)
 				}]
 			}))
+	}
 
 	// Load the historical data.
 	let historyPath = opts.options.history?.value ?? __dirname + '/../history'
@@ -123,6 +131,8 @@ export default function main(args) {
 		sources.map(function(path) {
 			return fs.createReadStream(path)
 				.pipe(utf8())
+				.pipe(lineStream())
+				.pipe(csvNormalizeStream())
 				.pipe(csvParse({
 					columns: true,
 					skip_empty_lines: true
@@ -135,25 +145,24 @@ export default function main(args) {
 	if (opts.options.take)
 		stream = stream.pipe(take(parseInt(opts.options.take.value)))
 
-	stream = stream
-		.pipe(tradeValueStream({
-			history,
-			verbose: !!opts.options.verbose,
-			web: !!opts.options.web
-		}))
-		.pipe(tradeTransactionsStream())
-
-	// Limit the assets.
-	if (opts.options.assets)
-		stream = stream.pipe(transactionFilterStream({
-			assets: new Set(opts.options.assets.value.split(',').map(Assets.normalizeCode))
+	// Filter the trades by their assets.
+	if (assets)
+		stream = stream.pipe(tradeFilterStream({
+			assets
 		}))
 
 	// Calculate the capital gains.
 	stream = multiStream([
 		fs.createReadStream(__dirname + '/../res/output_header.md'),
 		stream
+			.pipe(tradeValueStream({
+				history,
+				verbose: !!opts.options.verbose,
+				web: !!opts.options.web
+			}))
+			.pipe(tradeTransactionsStream())
 			.pipe(capitalGainsCalculateStream({
+				assets,
 				forwardByAsset
 			}))
 			.pipe(capitalGainsFormatStream()),

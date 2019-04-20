@@ -23,7 +23,7 @@ import formatTime from './format-time'
 /**
  * The captial gains.
  * @typedef {object} CapitalGains
- * @property {Map.<string, Forward>} forwardByAsset       The assets that were carried forward from last year.
+ * @property {Map.<string, Forward>} [forwardByAsset]     The assets that were carried forward from last year.
  * @property {array.<Trade>}         trades               The trades.
  * @property {Map.<string, Ledger>}  ledgerByAsset        The ledger of each asset.
  * @property {Disposition}           aggregateDisposition The aggregate disposition.
@@ -42,8 +42,9 @@ import formatTime from './format-time'
 class CapitalGainsCalculateStream extends stream.Transform {
 	/**
 	 * Initializes a new instance.
-	 * @param {object}                   [options]                The options.
-	 * @param {object.<string, Forward>} [options.forwardByAsset] The assets to carry forward from last year.
+	 * @param {object}                [options]                The options.
+	 * @param {Set.<string>}          [options.assets]         The assets to retain.
+	 * @param {Map.<string, Forward>} [options.forwardByAsset] The assets to carry forward from last year.
 	 */
 	constructor(options) {
 		super({
@@ -54,11 +55,9 @@ class CapitalGainsCalculateStream extends stream.Transform {
 
 		/**
 		 * The assets to carry forward from last year.
-		 * @type {Map.<string, Ledger>}
+		 * @type {Map.<string, Forward>}
 		 */
-		this._forwardByAsset = new Map(this._options?.forwardByAsset
-			? Object.entries(this._options.forwardByAsset)
-			: [])
+		this._forwardByAsset = this._options?.forwardByAsset
 
 		/**
 		 * The trades.
@@ -79,15 +78,13 @@ class CapitalGainsCalculateStream extends stream.Transform {
 		this._assetsWithNegativeBalance = new Set
 
 		// Initialize the ledger of the assets to carry forward from last year.
-		if (this._forwardByAsset) {
-			for (let [asset, forward] of this._forwardByAsset) {
+		if (this._forwardByAsset)
+			for (let [asset, forward] of this._forwardByAsset.entries())
 				this._ledgerByAsset.set(asset, {
 					acb: forward.acb,
 					balance: forward.balance,
 					dispositions: []
 				})
-			}
-		}
 	}
 
 	/**
@@ -108,9 +105,8 @@ class CapitalGainsCalculateStream extends stream.Transform {
 			})
 
 		if (chunk.amount < 0) {
-			if (!ledger.balance) {
+			if (!ledger.balance)
 				console.log('WARNING: Disposition of ' + chunk.asset + ' from an empty balance on ' + formatTime(chunk.time) + '.')
-			}
 
 			let acbPerUnit = ledger.balance ? ledger.acb / ledger.balance : 0
 
@@ -133,7 +129,7 @@ class CapitalGainsCalculateStream extends stream.Transform {
 		// Update the balance.
 		ledger.balance += chunk.amount
 
-		// Remove the transaction fee from the balance.
+		// Remove the transaction fee from the balance, except for fiat currencies.
 		if (chunk.feeAmount) {
 			let feeLedger = this._ledgerByAsset.get(chunk.feeAsset)
 			if (feeLedger !== undefined) {
@@ -143,14 +139,19 @@ class CapitalGainsCalculateStream extends stream.Transform {
 			}
 		}
 
-		// Record the balance in the trade.
+		// Record the balance and ACB in the trade for information purposes.
 		chunk.balance = ledger.balance
+		chunk.acb = ledger.acb
 
 		// Check whether the balance is negative, which would indicate an accounting error.
 		if (ledger.balance < -0.000000005 && !this._assetsWithNegativeBalance.has(chunk.asset)) {
 			this._assetsWithNegativeBalance.add(chunk.asset)
-			console.log('WARNING: Encountered a negative balance for ' + chunk.asset + '.')
+			console.log('WARNING: Encountered a negative balance for ' + chunk.asset + ' on ' + formatTime(chunk.time) + '.')
 		}
+
+		// Clear the ACB when the balance is negative.
+		if (ledger.balance <= 0)
+			ledger.acb = 0
 
 		callback()
 	}
@@ -201,7 +202,7 @@ class CapitalGainsCalculateStream extends stream.Transform {
 			forwardByAsset: this._forwardByAsset,
 			trades: this._trades,
 			ledgerByAsset: this._ledgerByAsset,
-			aggregateDisposition: aggregateDisposition,
+			aggregateDisposition,
 			taxableGain: aggregateDisposition.gain / 2 // Capital gains are taxable at 50%.
 		})
 

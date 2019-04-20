@@ -33,7 +33,8 @@ class TradeParseStream extends stream.Transform {
 		'Date(UTC)|Market|Type|Price|Amount|Total|Fee|Fee Coin': TradeParseStream.prototype._transformBinance,
 		'OrderUuid|Exchange|Type|Quantity|Limit|CommissionPaid|Price|Opened|Closed': TradeParseStream.prototype._transformBittrex1,
 		'Uuid|Exchange|TimeStamp|OrderType|Limit|Quantity|QuantityRemaining|Commission|Price|PricePerUnit|IsConditional|Condition|ConditionTarget|ImmediateOrCancel|Closed': TradeParseStream.prototype._transformBittrex2,
-		'txid|refid|time|type|aclass|asset|amount|fee|balance': TradeParseStream.prototype._transformKraken
+		'txid|refid|time|type|aclass|asset|amount|fee|balance': TradeParseStream.prototype._transformKraken,
+		'Coin|Time|Buy/Sell|Filled Price|Amount|Fee|Volume': TradeParseStream.prototype._transformKuCoin
 	}
 
 	/**
@@ -198,6 +199,46 @@ class TradeParseStream extends stream.Transform {
 
 			chunks.length = 0
 		}
+	}
+
+	/**
+	 * Transforms a CSV record from KuCoin into a trade.
+	 * @param {object} chunk The CSV record.
+	 */
+	async _transformKuCoin(chunk) {
+		// If this is not a trade, then drop it.
+		let buySell = chunk['Buy/Sell']
+		if (buySell !== 'Buy' && buySell !== 'Sell')
+			return
+
+		let [quoteAsset,baseAsset] = chunk.Coin.split('/')
+		baseAsset = Assets.normalizeCode(baseAsset)
+		quoteAsset = Assets.normalizeCode(quoteAsset)
+
+		const splitAmountAssetRegExp = /^([0-9.,]+)([A-Za-z][A-Za-z0-9]*)$/
+
+		let [amount, amountAsset] = chunk.Amount.match(splitAmountAssetRegExp).slice(1)
+		let [feeAmount, feeAsset] = chunk.Fee.match(splitAmountAssetRegExp).slice(1)
+
+		amountAsset = Assets.normalizeCode(amountAsset)
+		feeAsset = Assets.normalizeCode(feeAsset)
+
+		if (amountAsset !== quoteAsset) {
+			console.log('WARNING: Expected amount of ' + quoteAsset + ' but found ' + amountAsset + ' instead.')
+			return
+		}
+
+		this.push({
+			exchange: 'KuCoin',
+			baseAsset: baseAsset,
+			quoteAsset: quoteAsset,
+			baseAmount: TradeParseStream._parseNumber(chunk['Filled Price']),
+			quoteAmount: TradeParseStream._parseNumber(chunk.Amount),
+			sell: buySell === 'Sell',
+			time: TradeParseStream._parseTime(chunk.Time),
+			feeAsset: baseAsset,
+			feeAmount: feeAmount
+		})
 	}
 
 	/**

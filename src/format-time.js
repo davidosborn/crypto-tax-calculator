@@ -12,7 +12,7 @@ function formatTime(time) {
 			hour: '2-digit',
 			hour12: false,
 			minute: '2-digit',
-			month: '2-digit',
+			month: 'short',
 			year: 'numeric'
 		})
 }

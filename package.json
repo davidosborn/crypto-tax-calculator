@@ -47,6 +47,7 @@
 		"binary-search-bounds": "*",
 		"csv-parse": "*",
 		"fromentries": "*",
+		"line-stream": "*",
 		"markdown-table": "*",
 		"marked": "*",
 		"multistream": "*",

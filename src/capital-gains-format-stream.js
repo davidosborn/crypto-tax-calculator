@@ -1,8 +1,9 @@
 'use strict'
 
 import markdownTable from 'markdown-table'
-import marked from 'marked'
 import stream from 'stream'
+import Assets from './assets'
+import formatTime from './format-time'
 
 /**
  * A stream that formats the capital gains for the user.
@@ -44,7 +45,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 	 */
 	_transform(chunk, encoding, callback) {
 		// Write the balance that was carried forward from last year.
-		if (chunk.forwardByAsset.size) {
+		if (chunk.forwardByAsset?.size) {
 			this._pushLine()
 			this._pushLine('## Carried forward from last year')
 			this._pushLine()
@@ -68,12 +69,13 @@ class CapitalGainsFormatStream extends stream.Transform {
 		this._pushLine(markdownTable(
 			[[
 				'Asset',
-				'Units acquired',
+				'Units acquired (or disposed)',
 				'Value',
 				'Balance',
+				'Adjusted cost base',
 				'Fee',
 				'Fee asset',
-				'Date',
+				'Time',
 				'Exchange'
 			]]
 			.concat(Array.from(chunk.trades, trade => [
@@ -81,9 +83,10 @@ class CapitalGainsFormatStream extends stream.Transform {
 				this._formatAmount(trade.amount),
 				this._formatValue(trade.value),
 				this._formatAmount(trade.balance),
-				this._formatAmount(trade.feeAmount),
-				trade.feeAsset,
-				this._formatDate(trade.time),
+				this._formatValue(trade.acb),
+				trade.feeAsset ? this._formatAssetAmount(trade.feeAsset, trade.feeAmount) : '',
+				trade.feeAsset ? trade.feeAsset : '',
+				formatTime(trade.time),
 				trade.exchange
 			]))))
 
@@ -105,7 +108,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				'Adjusted cost base',
 				'Outlays and expenses',
 				'Gain (or loss)',
-				'Date',
+				'Time',
 				'Exchange'
 			]]
 			.concat(...ledgerByAsset.map(([asset, ledger]) =>
@@ -116,7 +119,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 					this._formatValue(disposition.acb),
 					this._formatValue(disposition.oae),
 					this._formatValue(disposition.gain),
-					this._formatDate(disposition.time),
+					formatTime(disposition.time),
 					disposition.exchange
 				])
 			))))
@@ -207,6 +210,12 @@ class CapitalGainsFormatStream extends stream.Transform {
 		callback()
 	}
 
+	_formatAssetAmount(asset, amount) {
+		return Assets.getPriority(asset) !== 0
+			? this._formatAmount(amount)
+			: this._formatValue(amount)
+	}
+
 	_formatAmount(amount) {
 		let amountString = this._amountFormat.format(Math.abs(amount))
 		if (amount < -0.000000005)
@@ -219,18 +228,6 @@ class CapitalGainsFormatStream extends stream.Transform {
 		if (value < -0.005)
 			valueString = `(${valueString})`
 		return '$' + valueString
-	}
-
-	_formatDate(time) {
-		return new Date(time)
-			.toLocaleDateString('en-CA', {
-				day: 'numeric',
-				hour: '2-digit',
-				minute: '2-digit',
-				month: 'short',
-				second: '2-digit',
-				year: 'numeric'
-			})
 	}
 
 	_pushLine(line) {
