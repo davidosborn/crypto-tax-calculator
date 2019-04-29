@@ -61,6 +61,12 @@ export default function main(args) {
 				description: 'Do not write the results.'
 			},
 			{
+				short: 's',
+				long: 'show',
+				argument: 'spec',
+				description: 'Only show the specified assets.'
+			},
+			{
 				short: 't',
 				long: 'take',
 				argument: 'count',
@@ -108,6 +114,11 @@ export default function main(args) {
 	if (opts.options.assets)
 		assets = new Set(opts.options.assets.value.split(',').map(Assets.normalizeCode))
 
+	// Parse the assets to show when filtering the results.
+	let show = undefined
+	if (opts.options.show)
+		show = new Set(opts.options.show.value.split(',').map(Assets.normalizeCode))
+
 	// Parse the initial balance and ACB of each asset to carry it forward from last year.
 	let forwardByAsset = undefined
 	if (opts.options.init) {
@@ -116,7 +127,7 @@ export default function main(args) {
 				let [asset, balance, acb] = spec.split(':')
 				return [asset, {
 					balance: parseFloat(balance),
-					acb: parseFloat(acb)
+					acb: acb != null ? parseFloat(acb) : 0
 				}]
 			}))
 	}
@@ -131,7 +142,7 @@ export default function main(args) {
 		sources.map(function(path) {
 			return fs.createReadStream(path)
 				.pipe(utf8())
-				.pipe(lineStream())
+				.pipe(lineStream('\n'))
 				.pipe(csvNormalizeStream())
 				.pipe(csvParse({
 					columns: true,
@@ -165,7 +176,9 @@ export default function main(args) {
 				assets,
 				forwardByAsset
 			}))
-			.pipe(capitalGainsFormatStream()),
+			.pipe(capitalGainsFormatStream({
+				assets: show
+			})),
 		fs.createReadStream(__dirname + '/../res/output_footer.md')
 	])
 
@@ -174,7 +187,7 @@ export default function main(args) {
 		stream = stream.pipe(markedStream())
 
 	// Pipe the stream to the output file.
-	if (!opts.options.silent)
+	if (!opts.options.quiet)
 		stream.pipe(destination ? fs.createWriteStream(destination) : process.stdout)
 }
 

@@ -43,8 +43,9 @@ class TradeValueStream extends stream.Transform {
 
 		// Calculate the value of the fee.
 		chunk.feeValue = (
-			chunk.feeAsset === chunk.baseAsset ? chunk.value * chunk.feeAmount / chunk.baseAmount :
-			chunk.feeAsset === chunk.quoteAsset ? chunk.value * chunk.feeAmount / chunk.quoteAmount :
+			!chunk.feeAmount ? 0 :
+			chunk.feeAsset === chunk.baseAsset  ? (chunk.baseAmount  ? chunk.value * chunk.feeAmount / chunk.baseAmount  : 0) :
+			chunk.feeAsset === chunk.quoteAsset ? (chunk.quoteAmount ? chunk.value * chunk.feeAmount / chunk.quoteAmount : 0) :
 			await this._getValue(chunk.feeAsset, chunk.feeAmount, chunk.time))
 
 		this.push(chunk)

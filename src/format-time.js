@@ -10,9 +10,10 @@ function formatTime(time) {
 		.toLocaleString(undefined, {
 			day: '2-digit',
 			hour: '2-digit',
-			hour12: false,
+			hour12: true,
 			minute: '2-digit',
 			month: 'short',
+			second: '2-digit',
 			year: 'numeric'
 		})
 }

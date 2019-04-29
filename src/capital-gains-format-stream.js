@@ -9,10 +9,17 @@ import formatTime from './format-time'
  * A stream that formats the capital gains for the user.
  */
 class CapitalGainsFormatStream extends stream.Transform {
-	constructor() {
+	/**
+	 * Initializes a new instance.
+	 * @param {object}       [options]        The options.
+	 * @param {Set.<string>} [options.assets] The assets to show.
+	 */
+	constructor(options) {
 		super({
 			writableObjectMode: true
 		})
+
+		this._options = options
 
 		this._amountFormat = new Intl.NumberFormat('en-CA', {
 			minimumFractionDigits: 8,
@@ -44,6 +51,27 @@ class CapitalGainsFormatStream extends stream.Transform {
 	 * @param {function}     callback A callback for when the transformation is complete.
 	 */
 	_transform(chunk, encoding, callback) {
+		// Filter the assets.
+		if (this._options?.assets) {
+			// Filter the assets that were carried forward from last year.
+			for (let asset of chunk.forwardByAsset.keys())
+				if (!this._options.assets.has(asset))
+					chunk.forwardByAsset.delete(asset)
+
+			// Filter the trades.
+			chunk.trades = chunk.trades.filter((trade) => this._options.assets.has(trade.asset))
+
+			// Filter the ledgers.
+			for (let asset of chunk.ledgerByAsset.keys())
+				if (!this._options.assets.has(asset))
+					chunk.ledgerByAsset.delete(asset)
+
+			// Filter the negative balances.
+			for (let asset of chunk.negativeBalanceByAsset.keys())
+				if (!this._options.assets.has(asset))
+					chunk.negativeBalanceByAsset.delete(asset)
+		}
+
 		// Write the balance that was carried forward from last year.
 		if (chunk.forwardByAsset?.size) {
 			this._pushLine()
@@ -90,7 +118,7 @@ class CapitalGainsFormatStream extends stream.Transform {
 				trade.exchange
 			]))))
 
-		// Sort the assets.
+		// Sort the ledgers by asset.
 		let ledgerByAsset = Array.from(chunk.ledgerByAsset)
 		ledgerByAsset.sort(function(a, b) {
 			return a[0].localeCompare(b[0])
@@ -180,6 +208,34 @@ class CapitalGainsFormatStream extends stream.Transform {
 			['Total gain (or loss)',          this._formatValue(chunk.aggregateDisposition.gain)],
 			['Taxable gain (or loss)',        `**${this._formatValue(chunk.taxableGain)}**`]
 		]))
+
+		// Sort the negative balances by asset.
+		let negativeBalanceByAsset = Array.from(chunk.negativeBalanceByAsset)
+		negativeBalanceByAsset.sort(function(a, b) {
+			return a[0].localeCompare(b[0])
+		})
+
+		// Write the negative balances.
+		if (negativeBalanceByAsset.length) {
+			this._pushLine()
+			this._pushLine('## Negative balances')
+			this._pushLine()
+			this._pushLine(markdownTable(
+				[[
+					'Asset',
+					'First negative balance',
+					'Time of first negative balance',
+					'Minimum balance',
+					'Time of minimum balance'
+				]]
+				.concat(negativeBalanceByAsset.map(([asset, negativeBalance]) => [
+					asset,
+					this._formatAmount(negativeBalance.first.balance),
+					formatTime(negativeBalance.first.time),
+					this._formatAmount(negativeBalance.minimum.balance),
+					formatTime(negativeBalance.minimum.time)
+				]))))
+		}
 
 		// Find the assets that are carrying a balance.
 		let ledgerByAssetWithBalance = ledgerByAsset

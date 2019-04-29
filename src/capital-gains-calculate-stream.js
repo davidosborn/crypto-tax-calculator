@@ -23,17 +23,30 @@ import formatTime from './format-time'
 /**
  * The captial gains.
  * @typedef {object} CapitalGains
- * @property {Map.<string, Forward>} [forwardByAsset]     The assets that were carried forward from last year.
- * @property {array.<Trade>}         trades               The trades.
- * @property {Map.<string, Ledger>}  ledgerByAsset        The ledger of each asset.
- * @property {Disposition}           aggregateDisposition The aggregate disposition.
- * @property {number}                taxableGain          The taxable gain (or loss).
+ * @property {Map.<string, Forward>}         [forwardByAsset]       The assets that were carried forward from last year.
+ * @property {array.<Trade>}                 trades                 The trades.
+ * @property {Map.<string, Ledger>}          ledgerByAsset          The ledger of each asset.
+ * @property {Map.<string, NegativeBalance>} negativeBalanceByAsset The assets that had a negative balance.
+ * @property {Disposition}                   aggregateDisposition   The aggregate disposition.
+ * @property {number}                        taxableGain            The taxable gain (or loss).
  */
 /**
  * The initial balance and ACB of an asset that was carried forward from last year.
  * @typedef {object} Forward
  * @property {number} balance The balance.
  * @property {number} acb     The adjusted cost base.
+ */
+/**
+ * The information about the negative balance of an asset.
+ * @typedef {object} NegativeBalance
+ * @property {NegativeBalanceEvent} first   The first negative balance.
+ * @property {NegativeBalanceEvent} minimum The minimum negative balance.
+ */
+/**
+ * The information about an occurrence of a negative balance.
+ * @typedef {object} NegativeBalanceEvent
+ * @property {number} balance The balance at the event.
+ * @property {number} time    The time of the event, as a UNIX timestamp.
  */
 
 /**
@@ -43,7 +56,7 @@ class CapitalGainsCalculateStream extends stream.Transform {
 	/**
 	 * Initializes a new instance.
 	 * @param {object}                [options]                The options.
-	 * @param {Set.<string>}          [options.assets]         The assets to retain.
+	 * @param {Set.<string>}          [options.assets]         The assets to consider.
 	 * @param {Map.<string, Forward>} [options.forwardByAsset] The assets to carry forward from last year.
 	 */
 	constructor(options) {
@@ -73,9 +86,9 @@ class CapitalGainsCalculateStream extends stream.Transform {
 
 		/**
 		 * The assets that had a negative balance.
-		 * @type {Set}
+		 * @type {Map.<string, number>}
 		 */
-		this._assetsWithNegativeBalance = new Set
+		this._negativeBalanceByAsset = new Map
 
 		// Initialize the ledger of the assets to carry forward from last year.
 		if (this._forwardByAsset)
@@ -144,9 +157,26 @@ class CapitalGainsCalculateStream extends stream.Transform {
 		chunk.acb = ledger.acb
 
 		// Check whether the balance is negative, which would indicate an accounting error.
-		if (ledger.balance < -0.000000005 && !this._assetsWithNegativeBalance.has(chunk.asset)) {
-			this._assetsWithNegativeBalance.add(chunk.asset)
-			console.log('WARNING: Encountered a negative balance for ' + chunk.asset + ' on ' + formatTime(chunk.time) + '.')
+		if (ledger.balance < -0.000000005) {
+			let negativeBalance = this._negativeBalanceByAsset.get(chunk.asset)
+			if (negativeBalance === undefined) {
+				negativeBalance = {
+					first: {
+						balance: ledger.balance,
+						time: chunk.time
+					},
+					minimum: {
+						balance: ledger.balance,
+						time: chunk.time
+					}
+				}
+				this._negativeBalanceByAsset.set(chunk.asset, negativeBalance)
+			}
+			else if (ledger.balance < negativeBalance.minimum.balance)
+				negativeBalance.minimum = {
+					balance: ledger.balance,
+					time: chunk.time
+				}
 		}
 
 		// Clear the ACB when the balance is negative.
@@ -202,6 +232,7 @@ class CapitalGainsCalculateStream extends stream.Transform {
 			forwardByAsset: this._forwardByAsset,
 			trades: this._trades,
 			ledgerByAsset: this._ledgerByAsset,
+			negativeBalanceByAsset: this._negativeBalanceByAsset,
 			aggregateDisposition,
 			taxableGain: aggregateDisposition.gain / 2 // Capital gains are taxable at 50%.
 		})

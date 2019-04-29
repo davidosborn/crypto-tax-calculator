@@ -1,7 +1,8 @@
 
-The calculation can be limited to a subset of the available assets by the '--assets' option.
-The argument is a comma-separated list of assets.
+A subset of the available assets can be considered for the calculation by the '--assets' option,
+or used to filter the results by the '--show' option.
+The argument in both cases is a comma-separated list of assets.
 
 The balances can be carried forward from last year by the '--init' option.
 The argument is a comma-separated list of assets, each with its balance and adjusted cost base,
-in the form of '<asset>:<balance>:<acb>,...', such as '--init=BTC:1:5000,ETH:5:1000,LTC:10:80'.
+in the form of '<asset>:<balance>[:<acb>],...', such as '--init=BTC:1:5000,ETH:5:1000,LTC:10:80'.
