@@ -4,15 +4,16 @@ A tool to calculate the capital gains of cryptocurrency assets for Canadian taxe
 The source data comes from a set of trade logs, which are provided by the exchanges.
 The *adjusted cost base* (ACB) is used to calculate the capital gains.
 
-## Disclaimer
+## Introduction
 
-I am not an accountant, and I do not warrant the validity of the results.
-Nevertheless, I have used this program to calculate my own capital gains for tax purposes in 2017 and 2018.
-In 2018, I refined the software with many new options to handle missing logs, stolen assets, and other complex issues.
+I created this software to calculate the capital gains from my 2017 cryptocurrency trades for tax purposes.
+For my 2018 taxes, I refined the software with many new options to handle missing logs, stolen assets, and other complex issues.
+
+Please note that I am not an accountant, and I do not warrant the validity of the results.
 
 ## Exchanges
 
-The following exchanges are supported:
+The following exchanges are supported out-of-the-box:
 
 - Binance
 - Bittrex
@@ -21,7 +22,7 @@ The following exchanges are supported:
 
 It is easy to add support for additional exchanges.
 Simply add a parser in `trade-parse-stream.js` to convert a CSV row to the normalized format.
-You can look at the existing parsers for ideas.
+You can look at the existing parsers as examples of how to do this.
 
 ## Usage
 
@@ -38,9 +39,19 @@ ETH:4.18451232:3478.97,\
 LTC:11.09684:3113.88
 ```
 
-There are options for providing
+The resulting Markdown or HTML contains:
+
+- The assets carried forward from the previous year (if any).
+- A list of trades, ordered by time, including fees and the running ACB.
+- A list of dispositions, ordered by asset and time, including the POD, ACB, OAE, and the running gain (or loss).
+- A summary of the aggregate dispositions per asset.
+- A summary of the aggregate gain (or loss), ACB, and remaining balance per asset.
+- The total taxable capital gains.
+- The assets that can be carried forward to the next year (if any).
 
 ### Options
+
+There are options for filtering by currency, defining the initial balance, limiting the number of trades, and providing historical data.
 
 | Short option | Long option   | Argument                                           | Description
 | ------------ | ------------- | -------------------------------------------------- | -----------
