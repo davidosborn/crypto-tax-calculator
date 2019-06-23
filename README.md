@@ -55,17 +55,17 @@ There are options for filtering by currency, defining the initial balance, limit
 
 | Short option | Long option   | Argument                                           | Description
 | ------------ | ------------- | -------------------------------------------------- | -----------
-| -a           | --assets      | &lt;spec&gt; [<sup>[1]</sup>](#options-footnote-1) | Only consider trades involving the specified assets.
-| -h           | --help        |                                                    | Display this usage information and exit.
-| -i           | --init        | &lt;spec&gt; [<sup>[2]</sup>](#options-footnote-2) | Define the initial balance and ACB of the assets.
-| -m           | --html        |                                                    | Format the results as HTML instead of Markdown.
-| -o           | --output      | &lt;file&gt;                                       | Write the results to the specified file.
-| -q           | --quiet       |                                                    | Do not write the results.
-| -s           | --show        | &lt;spec&gt; [<sup>[1]</sup>](#options-footnote-1) | Only show the specified assets.
-| -t           | --take        | &lt;count&gt;                                      | Do not process more than the specified number of trades.
-| -v           | --verbose     |                                                    | Write extra information to the console.
-| -w           | --web         |                                                    | Request historical asset values from the internet.
-| -y           | --history     | &lt;path&gt; [<sup>[3]</sup>](#options-footnote-1) | Read historical asset values from the specified directory.
+| `-a`         | `--assets`    | &lt;spec&gt; [<sup>[1]</sup>](#options-footnote-1) | Only consider trades involving the specified assets.
+| `-h`         | `--help`      |                                                    | Display this usage information and exit.
+| `-i`         | `--init`      | &lt;spec&gt; [<sup>[2]</sup>](#options-footnote-2) | Define the initial balance and ACB of the assets.
+| `-m`         | `--html`      |                                                    | Format the results as HTML instead of Markdown.
+| `-o`         | `--output`    | &lt;file&gt;                                       | Write the results to the specified file.
+| `-q`         | `--quiet`     |                                                    | Do not write the results.
+| `-s`         | `--show`      | &lt;spec&gt; [<sup>[1]</sup>](#options-footnote-1) | Only show the specified assets.
+| `-t`         | `--take`      | &lt;count&gt;                                      | Do not process more than the specified number of trades.
+| `-v`         | `--verbose`   |                                                    | Write extra information to the console.
+| `-w`         | `--web`       |                                                    | Request historical asset values from the internet.
+| `-y`         | `--history`   | &lt;path&gt; [<sup>[3]</sup>](#options-footnote-1) | Read historical asset values from the specified directory.
 
 <sup id="options-footnote-1">[1]</sup>
 A subset of the available assets can be considered for the calculation by the `--assets` option, or used to filter the results by the `--show` option.
