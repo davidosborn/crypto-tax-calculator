@@ -38,6 +38,7 @@
 	},
 	"scripts": {
 		"build": "npx babel -d lib src",
+		"doc": "./node_modules/.bin/jsdoc -c doc/jsdoc/conf.json -d doc/jsdoc/out -r src README.md",
 		"prepublishOnly": "npm run build",
 		"start": "node index"
 	},
@@ -60,7 +61,8 @@
 		"@babel/cli": "*",
 		"@babel/core": "*",
 		"@babel/register": "*",
-		"@davidosborn/babel-preset": "*"
+		"@davidosborn/babel-preset": "*",
+		"jsdoc": "*"
 	},
 	"publishConfig": {
 		"access": "public"
