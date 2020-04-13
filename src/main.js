@@ -6,7 +6,7 @@ import csvParse from 'csv-parse'
 import fromEntries from 'fromentries'
 import fs from 'fs'
 import lineStream from 'line-stream'
-import multiStream from 'multistream'
+import MultiStream from 'multistream'
 import process from 'process'
 import sortStream from 'sort-stream2'
 import take from 'take-stream'
@@ -31,58 +31,48 @@ export default function main(args) {
 				long: ['assets', 'asset'],
 				argument: 'spec',
 				description: 'Only consider trades involving the specified assets.'
-			},
-			{
+			}, {
 				short: 'h',
 				long: 'help',
 				description: 'Display this usage information and exit.',
 				callback: usage
-			},
-			{
+			}, {
 				short: 'i',
 				long: 'init',
 				argument: 'spec',
 				description: 'Define the initial balance and ACB of the assets.'
-			},
-			{
+			}, {
 				short: 'm',
 				long: 'html',
 				description: 'Format the results as HTML instead of Markdown.'
-			},
-			{
+			}, {
 				short: 'o',
 				long: 'output',
 				argument: 'file',
 				description: 'Write the results to the specified file.'
-			},
-			{
+			}, {
 				short: 'q',
 				long: 'quiet',
 				description: 'Do not write the results.'
-			},
-			{
+			}, {
 				short: 's',
 				long: 'show',
 				argument: 'spec',
 				description: 'Only show the specified assets.'
-			},
-			{
+			}, {
 				short: 't',
 				long: 'take',
 				argument: 'count',
 				description: 'Do not process more than the specified number of trades.'
-			},
-			{
+			}, {
 				short: 'v',
 				long: 'verbose',
 				description: 'Write extra information to the console.'
-			},
-			{
+			}, {
 				short: 'w',
 				long: 'web',
 				description: 'Request historical asset values from the internet.'
-			},
-			{
+			}, {
 				short: 'y',
 				long: 'history',
 				argument: 'path',
@@ -163,7 +153,7 @@ export default function main(args) {
 		}))
 
 	// Calculate the capital gains.
-	stream = multiStream([
+	stream = new MultiStream([
 		fs.createReadStream(__dirname + '/../res/output_header.md'),
 		stream
 			.pipe(tradeValueStream({

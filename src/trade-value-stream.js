@@ -134,8 +134,8 @@ class TradeValueStream extends stream.Transform {
 		if (i === -1)
 			return NaN
 
-		if (i === history.length) {
-			return history[i].close
+		if (i === history.length - 1) {
+			return history[i - 1].close
 		}
 
 		// Approximate the value using linear interpolation.
